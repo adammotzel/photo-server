@@ -1,9 +1,9 @@
-# Photo Album Server
+# Photo Server
 
 A quick side project to serve photos of my dog on a web app to anyone connected to my home Wi-Fi. The code uses:
 
 - `fastapi` for serving the app.
-- `html` for webpages (thanks ChatGPT 🙂).
+- `html` for some vanilla webpages (thanks ChatGPT 🙂).
 - `starlette` for middleware (e.g., login/password).
 
 To run the app yourself, follow these steps:
@@ -11,8 +11,8 @@ To run the app yourself, follow these steps:
 1. Clone the repo:
 
 ```bash
-git clone https://github.com/adammotzel/photo-album-server.git
-cd photo-album-server
+git clone https://github.com/adammotzel/photo-server.git
+cd photo-server
 ```
 
 2. Create a `.env` file in project root:
@@ -24,11 +24,11 @@ cd photo-album-server
     5. `SECRET`: The key used for the middleware.
 
 ```bash
-PW=password
+PW='password'
 UN='john,jane'
 NAME='Scooby-doo'
-PYTHONPATH=/absolute/path/to/your/project
-SECRET=somesupersecretkey
+PYTHONPATH='/absolute/path/to/your/project'
+SECRET='somesupersecretkey'
 ```
 
 3. Set up a virtual environment (I used Python `3.12.8`):
