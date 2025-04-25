@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Photo Gallery</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f7f7f7;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px;
+            text-align: center;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: #555;
+            margin-bottom: 40px;
+        }
+
+        .cover-image {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 30px;
+            max-width: 600px;
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .options a {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            text-decoration: none;
+            color: #fff;
+            background-color: #007bff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, transform 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .options a:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 600px) {
+            .options {
+                flex-direction: column;
+            }
+
+            .options a {
+                width: 100%;
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>The Life of {{ name }}</h1>
+        <p>Choose an option below.</p>
+
+        <div class="options">
+            <a href="/photos">View Photos</a>
+            <a href="/upload">Upload Photos</a>
+            <a href="/veggietales">Oh, where is my hairbrush?</a>
+        </div>
+    </div>
+</body>
+</html>

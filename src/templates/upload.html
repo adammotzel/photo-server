@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Photo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px; /* Reduced padding for better spacing on mobile */
+            margin: 0;
+            background-color: #f4f4f9; /* Light background for better contrast */
+        }
+
+        h1 {
+            font-size: 24px; /* Adjusted font size */
+        }
+
+        .message {
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        form {
+            display: inline-block;
+            margin-top: 20px;
+            max-width: 100%; /* Ensure the form doesn't overflow */
+            width: 100%; /* Make the form fill the width of the screen */
+            padding: 10px;
+            box-sizing: border-box; /* Ensures padding doesn't affect width */
+        }
+
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 10px; /* Better padding on mobile */
+            width: 100%; /* Makes the file input take full width on mobile */
+            max-width: 400px; /* Limits width on larger screens */
+        }
+
+        input[type="submit"] {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 100%; /* Makes the submit button fill the width on mobile */
+            max-width: 200px; /* Limits the width on larger screens */
+            margin-top: 10px;
+            font-size: 16px; /* Adjusted font size for better readability */
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .custom-file-upload {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #6c63ff;
+            color: white;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s, transform 0.3s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+
+        .custom-file-upload:hover {
+            background-color: #574fd6;
+            transform: translateY(-2px);
+        }
+
+        @media (min-width: 768px) {
+            body {
+                padding: 50px;
+            }
+
+            h1 {
+                font-size: 32px; /* Larger title font on bigger screens */
+            }
+
+            form {
+                max-width: 600px; /* Center form for larger screens */
+            }
+
+            input[type="file"],
+            input[type="submit"] {
+                width: auto; /* Let inputs adjust their width based on content */
+            }
+        }
+    </style>
+    <a href="/" class="home-button">🏠 Home</a>
+</head>
+<body>
+    <h1>Upload Photo</h1>
+
+    {% if success %}
+        <div class="message success">✅ Photo uploaded successfully!</div>
+    {% elif error %}
+        <div class="message error">❌ Upload failed. Please try again.</div>
+    {% endif %}
+
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <label for="file-upload" class="custom-file-upload">
+            Select a Photo
+        </label>
+        <input id="file-upload" type="file" name="file" accept="image/*" required>
+        <br>
+        <span id="file-name" style="display: block; margin-top: 8px; color: #333;"></span>
+        <input type="submit" value="UPLOAD">
+    </form>
+
+    <script>
+        const fileInput = document.getElementById('file-upload');
+        const fileNameDisplay = document.getElementById('file-name');
+    
+        fileInput.addEventListener('change', function () {
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = `Selected: ${fileInput.files[0].name}`;
+            } else {
+                fileNameDisplay.textContent = '';
+            }
+        });
+    </script>
+</body>
+</html>
