@@ -20,7 +20,6 @@ logger.addHandler(sh)
 # valid creds
 load_dotenv()
 PASSWORD = os.getenv("PW")
-USERNAMES = os.getenv("UN").split(",")
 NAME = os.getenv("NAME", "My Dog")
 SECRET = os.getenv("SECRET")
 

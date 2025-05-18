@@ -6,6 +6,9 @@
 *.gif
 *.webp
 
+# metadata files
+.json
+
 # windows
 *.bat
 

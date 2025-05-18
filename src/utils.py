@@ -2,13 +2,15 @@ import os
 import re
 import shutil
 from typing import Set
+from datetime import datetime
+import json
 
 from fastapi import UploadFile
 
 
-def save_photo(file_location: str, file: UploadFile):
+def save_photo(file_location: str, file: UploadFile, user: str):
     """
-    Write photo to disk.
+    Write photo to disk along with photo metadata.
     
     Parameters
     --------
@@ -16,9 +18,23 @@ def save_photo(file_location: str, file: UploadFile):
         Path used to save the photo.
     file : UploadFile
         FastAPI UploadFile object.
+    user : str
+        Name of the user that uploaded the photo.
     """
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+
+    # photo metadata
+    metadata = {
+        "uploaded_by": user,
+        "uploaded_time": datetime.utcnow().isoformat() + "Z",
+        "original_filename": file.filename,
+        "content_type": file.content_type
+    }
+
+    json_path = os.path.splitext(file_location)[0] + ".json"
+    with open(json_path, "w", encoding="utf-8") as meta_file:
+        json.dump(metadata, meta_file, indent=2)
 
 
 def sanitize_filename(filename: str) -> str:

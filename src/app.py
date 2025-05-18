@@ -20,7 +20,6 @@ from src.config import (
     templates,
     save_photo_executor,
     manifest,
-    USERNAMES,
     PASSWORD,
     SECRET,
     NAME,
@@ -73,11 +72,11 @@ async def login_action(request: Request):
     """Submit login information."""
 
     form = await request.form()
-    un = form.get("username")
+    un = form.get("name")
     pw = form.get("password")
 
-    # check creds
-    if un in USERNAMES and pw == PASSWORD:
+    # check creds and remember user
+    if pw == PASSWORD:
         request.session["user"] = un
         logger.info(f"User '{un}' has logged into the app.")
         return RedirectResponse("/", status_code=302)
@@ -146,13 +145,14 @@ async def upload_photo(
             save_photo_executor, 
             save_photo, 
             file_location, 
-            file
+            file,
+            user
         )
 
         # add new file to manifest
         manifest.add(unique_filename)
         
-        logger.info(f"File '{unique_filename}' uploaded to photos.")
+        logger.info(f"File '{unique_filename}' uploaded to photos by user '{user}'.")
 
         return templates.TemplateResponse(
             "upload.html", 

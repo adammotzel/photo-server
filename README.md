@@ -18,14 +18,12 @@ cd photo-server
 2. Create a `.env` file in project root:
 
     1. `PW`: The app's login password.
-    2. `UN`: Comma-separated list of acceptable user names.
-    3. `NAME`: The name of your pet, to be injected into the HTML templates.
-    4. `PYTHONPATH`: Absolute path to the project.
-    5. `SECRET`: The key used for the middleware.
+    2. `NAME`: The name of your pet, to be injected into the HTML templates.
+    3. `PYTHONPATH`: Absolute path to the project.
+    4. `SECRET`: The key used for the middleware.
 
 ```bash
 PW='password'
-UN='john,jane'
 NAME='Scooby-doo'
 PYTHONPATH='/absolute/path/to/your/project'
 SECRET='somesupersecretkey'
