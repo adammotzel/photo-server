@@ -45,10 +45,10 @@ pip install -r requirements.txt
 5. Run the app:
 
 ```bash
-python main.py
+python run.py
 ```
 
-The app will launch on host `0.0.0.0` (all available network interfaces) and port `8000` by default. You can change this in the `main.py` file.
+The app will launch on host `0.0.0.0` (all available network interfaces) and port `8000` by default. You can change this in the `run.py` file.
 
 If you want to serve the app to other devices connected to your home Wi-Fi (like I did), you may need to allow inbound traffic on the port for private networks. This can be configured in your machine's firewall settings.
 
