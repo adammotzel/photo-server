@@ -53,3 +53,13 @@ The app will launch on host `0.0.0.0` (all available network interfaces) and por
 If you want to serve the app to other devices connected to your home Wi-Fi (like I did), you may need to allow inbound traffic on the port for private networks. This can be configured in your machine's firewall settings.
 
 Other in-network devices can access the app at `<local IP address>:<port>`. You can try setting the local domain to something more user-friendly, if you'd like.
+
+
+## Optional
+
+You can also run the app from a Docker container using the `Dockerfile` in project root.
+
+```bash
+docker build -t photo-server .
+docker container run --name photo-server-container --mount type=bind,source=$PWD/src/photos,target=/app/src/photos -p 8000:8000 photo-server
+```

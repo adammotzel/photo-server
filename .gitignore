@@ -7,7 +7,7 @@
 *.webp
 
 # metadata files
-.json
+*.json
 
 # windows
 *.bat
