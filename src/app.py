@@ -1,6 +1,6 @@
 import os
-import traceback
 import asyncio
+from typing import List
 
 from fastapi import (
     FastAPI, 
@@ -111,65 +111,69 @@ async def upload_form(request: Request, user: str = Depends(require_login)):
 
 
 @app.post("/upload")
-async def upload_photo(
+async def upload_photos(
     request: Request, 
-    file: UploadFile = File(...), 
+    files: List[UploadFile] = File(...), 
     user: str = Depends(require_login)
 ):
-    """Upload photo action."""
+    """Upload multiple photos."""
+
+    success_count = 0
+    error_count = 0
 
     try:
+        for file in files:
+            filename = file.filename or ""
+            ext = os.path.splitext(filename)[1].lower()
 
-        # check file type
-        filename = file.filename or ""
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in ALLOWED_EXTENSIONS or file.content_type not in ALLOWED_MIME_TYPES:
-            logger.warning(
-                f"Rejected file '{file.filename}': unsupported file type ({file.content_type})."
+            if ext not in ALLOWED_EXTENSIONS or file.content_type not in ALLOWED_MIME_TYPES:
+                logger.warning(
+                    f"Rejected file '{file.filename}': unsupported file type ({file.content_type})."
+                )
+                error_count += 1
+                continue
+
+            # get unique + safe filename
+            unique_filename = get_unique_filename(manifest, file.filename)
+            file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
+
+            await asyncio.get_running_loop().run_in_executor(
+                save_photo_executor,
+                save_photo,
+                file_location,
+                file,
+                user
             )
 
+            manifest.add(unique_filename)
+            logger.info(f"File '{unique_filename}' uploaded by user '{user}'.")
+            success_count += 1
+
+        if success_count == 0:
             return templates.TemplateResponse(
-                "upload.html", {
+                "upload.html",
+                {
                     "request": request,
                     "success": False,
-                    "error": "Unsupported file type. Please upload a valid image file."
+                    "error": "No valid images were uploaded."
                 }
             )
         
-        # sanitize filename, and ensure filename is unique
-        unique_filename = get_unique_filename(manifest, file.filename)
-        file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
-
-        # save to /photos directory
-        await asyncio.get_running_loop().run_in_executor(
-            save_photo_executor, 
-            save_photo, 
-            file_location, 
-            file,
-            user
-        )
-
-        # add new file to manifest
-        manifest.add(unique_filename)
-        
-        logger.info(f"File '{unique_filename}' uploaded to photos by user '{user}'.")
+        logger.info(f"Uploaded {success_count} files and rejected {error_count} files.")
 
         return templates.TemplateResponse(
-            "upload.html", 
+            "upload.html",
             {
                 "request": request,
                 "success": True
             }
         )
-    
+
     except Exception:
-        
-        error_trace = traceback.format_exc()
-        logger.error(f"Failed to upload file '{unique_filename}' to photos.")
-        logger.error(f"Error: {error_trace}")
+        logger.error("Failed to upload files.", exc_info=True)
 
         return templates.TemplateResponse(
-            "upload.html", 
+            "upload.html",
             {
                 "request": request,
                 "success": False,
@@ -193,9 +197,7 @@ async def view_photos(request: Request, user: str = Depends(require_login)):
         )
     
     except Exception:
-        error_trace = traceback.format_exc()
-        logger.error(f"Failed to fetch photos.")
-        logger.error(f"Error: {error_trace}")
+        logger.error(f"Failed to fetch photos.", exc_info=True)
 
         return templates.TemplateResponse(
             "gallery.html", 
@@ -226,9 +228,7 @@ async def serve_photo(
         return FileResponse(file_path)
     
     except Exception:
-        error_trace = traceback.format_exc()
-        logger.error(f"Failed to fetch photo '{filename}'.")
-        logger.error(f"Error: {error_trace}")
+        logger.error(f"Failed to fetch photo '{filename}'.", exc_info=True)
 
         return templates.TemplateResponse(
             "gallery.html", 

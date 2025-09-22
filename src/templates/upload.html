@@ -107,19 +107,19 @@
     <a href="/" class="home-button">🏠 Home</a>
 </head>
 <body>
-    <h1>Upload Photo</h1>
+  <h1>Upload Photos</h1>
 
     {% if success %}
-        <div class="message success">✅ Photo uploaded successfully!</div>
+        <div class="message success">✅ Photo(s) uploaded successfully!</div>
     {% elif error %}
         <div class="message error">❌ Upload failed. Please try again.</div>
     {% endif %}
 
     <form action="/upload" method="post" enctype="multipart/form-data">
         <label for="file-upload" class="custom-file-upload">
-            Select a Photo
+            Select Photos
         </label>
-        <input id="file-upload" type="file" name="file" accept="image/*" required>
+        <input id="file-upload" type="file" name="files" accept="image/*" multiple required>
         <br>
         <span id="file-name" style="display: block; margin-top: 8px; color: #333;"></span>
         <input type="submit" value="UPLOAD">
@@ -131,7 +131,8 @@
     
         fileInput.addEventListener('change', function () {
             if (fileInput.files.length > 0) {
-                fileNameDisplay.textContent = `Selected: ${fileInput.files[0].name}`;
+                const names = Array.from(fileInput.files).map(f => f.name).join(', ');
+                fileNameDisplay.textContent = `Selected: ${names}`;
             } else {
                 fileNameDisplay.textContent = '';
             }
