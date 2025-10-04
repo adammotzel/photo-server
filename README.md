@@ -6,6 +6,8 @@ A quick side project to serve photos of my dog on a web app to anyone connected 
 - `html` for some vanilla webpages (thanks ChatGPT 🙂).
 - `starlette` for middleware (e.g., login/password).
 
+Users can view and upload photos in the app's photo gallery.
+
 To run the app yourself, follow these steps:
 
 1. Clone the repo:
