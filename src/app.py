@@ -1,33 +1,25 @@
-import os
 import asyncio
+import os
 from typing import List
 
-from fastapi import (
-    FastAPI, 
-    Request, 
-    UploadFile, 
-    File,
-    Depends,
-    HTTPException
-)
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.status import HTTP_404_NOT_FOUND
 
-from src.utils import get_unique_filename, save_photo
 from src.config import (
-    logger,
-    templates,
-    save_photo_executor,
-    manifest,
+    ALLOWED_EXTENSIONS,
+    ALLOWED_MIME_TYPES,
+    NAME,
     PASSWORD,
     SECRET,
-    NAME,
     UPLOAD_FOLDER,
-    ALLOWED_EXTENSIONS,
-    ALLOWED_MIME_TYPES
+    logger,
+    manifest,
+    save_photo_executor,
+    templates
 )
-
+from src.utils import get_unique_filename, save_photo
 
 logger.info("Launching app...")
 
@@ -47,7 +39,9 @@ def require_login(request: Request):
 
     user = request.session.get("user")
     if not user:
-        raise HTTPException(status_code=302, detail="Redirect", headers={"Location": "/login"})
+        raise HTTPException(
+            status_code=302, detail="Redirect", headers={"Location": "/login"}
+        )
     return user
 
 
@@ -80,28 +74,18 @@ async def login_action(request: Request):
         request.session["user"] = un
         logger.info(f"User '{un}' has logged into the app.")
         return RedirectResponse("/", status_code=302)
-    
+
     logger.warning(f"Invalid login attempt by user '{un}'.")
-    
+
     return templates.TemplateResponse(
-        "login.html", 
-        {
-            "request": request,
-            "error": "Invalid username or password"
-        }
+        "login.html", {"request": request, "error": "Invalid username or password"}
     )
 
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, user: str = Depends(require_login)):
     """Home page."""
-    return templates.TemplateResponse(
-        "index.html", 
-        {
-            "request": request,
-            "name": NAME
-        }
-    )
+    return templates.TemplateResponse("index.html", {"request": request, "name": NAME})
 
 
 @app.get("/upload", response_class=HTMLResponse)
@@ -112,9 +96,9 @@ async def upload_form(request: Request, user: str = Depends(require_login)):
 
 @app.post("/upload")
 async def upload_photos(
-    request: Request, 
-    files: List[UploadFile] = File(...), 
-    user: str = Depends(require_login)
+    request: Request,
+    files: List[UploadFile] = File(...),
+    user: str = Depends(require_login),
 ):
     """Upload multiple photos."""
 
@@ -126,7 +110,10 @@ async def upload_photos(
             filename = file.filename or ""
             ext = os.path.splitext(filename)[1].lower()
 
-            if ext not in ALLOWED_EXTENSIONS or file.content_type not in ALLOWED_MIME_TYPES:
+            if (
+                ext not in ALLOWED_EXTENSIONS
+                or file.content_type not in ALLOWED_MIME_TYPES
+            ):
                 logger.warning(
                     f"Rejected file '{file.filename}': unsupported file type ({file.content_type})."
                 )
@@ -138,11 +125,7 @@ async def upload_photos(
             file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
 
             await asyncio.get_running_loop().run_in_executor(
-                save_photo_executor,
-                save_photo,
-                file_location,
-                file,
-                user
+                save_photo_executor, save_photo, file_location, file, user
             )
 
             manifest.add(unique_filename)
@@ -155,30 +138,21 @@ async def upload_photos(
                 {
                     "request": request,
                     "success": False,
-                    "error": "No valid images were uploaded."
-                }
+                    "error": "No valid images were uploaded.",
+                },
             )
-        
+
         logger.info(f"Uploaded {success_count} files and rejected {error_count} files.")
 
         return templates.TemplateResponse(
-            "upload.html",
-            {
-                "request": request,
-                "success": True
-            }
+            "upload.html", {"request": request, "success": True}
         )
 
     except Exception:
         logger.error("Failed to upload files.", exc_info=True)
 
         return templates.TemplateResponse(
-            "upload.html",
-            {
-                "request": request,
-                "success": False,
-                "error": True
-            }
+            "upload.html", {"request": request, "success": False, "error": True}
         )
 
 
@@ -189,31 +163,20 @@ async def view_photos(request: Request, user: str = Depends(require_login)):
     try:
 
         return templates.TemplateResponse(
-            "gallery.html", 
-            {
-                "request": request,
-                "photos": manifest
-            }
+            "gallery.html", {"request": request, "photos": manifest}
         )
-    
+
     except Exception:
-        logger.error(f"Failed to fetch photos.", exc_info=True)
+        logger.error("Failed to fetch photos.", exc_info=True)
 
         return templates.TemplateResponse(
-            "gallery.html", 
-            {
-                "request": request,
-                "success": False,
-                "error": True
-            }
+            "gallery.html", {"request": request, "success": False, "error": True}
         )
-    
+
 
 @app.get("/photos/{filename}", response_class=FileResponse)
 async def serve_photo(
-    filename: str, 
-    request: Request, 
-    user: str = Depends(require_login)
+    filename: str, request: Request, user: str = Depends(require_login)
 ):
     """Serve photos for the gallery."""
 
@@ -222,21 +185,16 @@ async def serve_photo(
         if filename not in manifest:
             logger.warning(f"User '{user}' requested invalid file: {filename}")
             return HTMLResponse("File not found.", status_code=HTTP_404_NOT_FOUND)
-        
+
         file_path = f"{UPLOAD_FOLDER}/{filename}"
-        
+
         return FileResponse(file_path)
-    
+
     except Exception:
         logger.error(f"Failed to fetch photo '{filename}'.", exc_info=True)
 
         return templates.TemplateResponse(
-            "gallery.html", 
-            {
-                "request": request,
-                "success": False,
-                "error": True
-            }
+            "gallery.html", {"request": request, "success": False, "error": True}
         )
 
 
