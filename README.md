@@ -31,13 +31,11 @@ PYTHONPATH='/absolute/path/to/your/project'
 SECRET='somesupersecretkey'
 ```
 
-3. Set up a virtual environment using `uv`:
+3. Set up a virtual environment using `uv` (if you don't have `uv`, you can install it [here](https://docs.astral.sh/uv/getting-started/installation/)):
 
 ```bash
 uv venv --python 3.12
 ```
-
-If you don't have `uv`, you can install it [here](https://docs.astral.sh/uv/getting-started/installation/).
 
 4. Activate the virtual env and install dependencies:
 
