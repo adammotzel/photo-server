@@ -17,7 +17,7 @@ from src.config import (
     logger,
     manifest,
     save_photo_executor,
-    templates
+    templates,
 )
 from src.utils import get_unique_filename, save_photo
 
