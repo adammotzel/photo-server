@@ -3,7 +3,7 @@
 A quick side project to serve photos of my dog on a web app to anyone connected to my home Wi-Fi. The code uses:
 
 - `fastapi` for serving the app.
-- `html` for some vanilla webpages (thanks ChatGPT 🙂).
+- `html` for some vanilla webpages.
 - `starlette` for middleware (e.g., login/password).
 
 Users can view and upload photos in the app's photo gallery.
@@ -31,17 +31,19 @@ PYTHONPATH='/absolute/path/to/your/project'
 SECRET='somesupersecretkey'
 ```
 
-3. Set up a virtual environment (I used Python `3.12.8`):
+3. Set up a virtual environment using `uv`:
 
 ```bash
-python -m venv venv
-source venv/Scripts/activate
+uv venv --python 3.12
 ```
 
-4. Install requirements:
+If you don't have `uv`, you can install it [here](https://docs.astral.sh/uv/getting-started/installation/).
+
+4. Activate the virtual env and install dependencies:
 
 ```bash
-pip install -r requirements.txt
+source .venv/Scripts/activate || source .venv/bin/activate
+uv sync --all-extras
 ```
 
 5. Run the app:

@@ -1,9 +1,9 @@
+import json
 import os
 import re
 import shutil
-import json
-from typing import Set
 from datetime import datetime
+from typing import Set
 
 from fastapi import UploadFile
 
@@ -11,7 +11,7 @@ from fastapi import UploadFile
 def save_photo(file_location: str, file: UploadFile, user: str):
     """
     Write photo to disk along with photo metadata.
-    
+
     Parameters
     --------
     file_location : str
@@ -29,7 +29,7 @@ def save_photo(file_location: str, file: UploadFile, user: str):
         "uploaded_by": user,
         "uploaded_time": datetime.utcnow().isoformat() + "Z",
         "original_filename": file.filename,
-        "content_type": file.content_type
+        "content_type": file.content_type,
     }
 
     json_path = os.path.splitext(file_location)[0] + ".json"
@@ -59,14 +59,14 @@ def sanitize_filename(filename: str) -> str:
     name, ext = os.path.splitext(filename)
     ext = ext.lower()
 
-    name = re.sub(r'[^A-Za-z0-9_.-]', "_", name)
+    name = re.sub(r"[^A-Za-z0-9_.-]", "_", name)
 
     return f"{name}{ext}"
 
 
 def get_unique_filename(existing_filenames: Set[str], filename: str) -> str:
     """
-    Get a unique filename, if the filename already exists. Sanitze filename 
+    Get a unique filename, if the filename already exists. Sanitze filename
     before returning the unique name.
 
     Parameters
@@ -81,7 +81,7 @@ def get_unique_filename(existing_filenames: Set[str], filename: str) -> str:
     str
         Unique filename.
     """
-    
+
     filename = sanitize_filename(filename)
 
     base, ext = os.path.splitext(filename)

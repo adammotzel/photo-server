@@ -186,3 +186,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Custom
+TODO
+uv.lock
