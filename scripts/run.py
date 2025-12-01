@@ -2,7 +2,6 @@ import os
 
 import uvicorn
 
-    
 uvicorn.run(
     "src.app:app", 
     host=os.getenv("SERVER_IP", "0.0.0.0"), 
