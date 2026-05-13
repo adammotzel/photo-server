@@ -13,9 +13,10 @@ dependencies = [
     "psycopg[binary]>=3.3.4",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pre-commit>=4.5.0",
+    "ty>=0.0.35",
 ]
 
 [tool.isort]

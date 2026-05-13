@@ -43,7 +43,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.add_middleware(SessionMiddleware, secret_key=SECRET)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET,  # ty: ignore[invalid-argument-type]
+)
 
 logger.info("Middleware has been added.")
 logger.info("Setting up endpoints...")
@@ -188,7 +191,7 @@ async def view_photos(request: Request, user: str = Depends(require_login)):
     manifest = [
         file
         for file in manifest
-        if file.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+        if isinstance(file, str) and file.lower().endswith(ALLOWED_EXTENSIONS)
     ]
 
     try:
