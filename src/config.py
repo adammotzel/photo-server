@@ -20,6 +20,7 @@ load_dotenv()
 PASSWORD = os.getenv("PW")
 NAME = os.getenv("NAME", "My Dog")
 SECRET = os.getenv("SECRET")
+POSTGRES_APP_PW = os.getenv("POSTGRES_PW")
 
 # file serving
 templates = Jinja2Templates(directory="src/templates")
@@ -30,7 +31,7 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
 # for writing photos to disk
-save_photo_executor = ThreadPoolExecutor(max_workers=1)
+save_photo_executor = ThreadPoolExecutor(max_workers=4)
 
 # existing photos
 manifest = {

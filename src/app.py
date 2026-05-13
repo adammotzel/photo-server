@@ -1,11 +1,12 @@
 import asyncio
 import os
+import uuid
+from contextlib import asynccontextmanager
 from typing import List
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.status import HTTP_404_NOT_FOUND
 
 from src.config import (
     ALLOWED_EXTENSIONS,
@@ -15,15 +16,32 @@ from src.config import (
     SECRET,
     UPLOAD_FOLDER,
     logger,
-    manifest,
     save_photo_executor,
     templates,
 )
-from src.utils import get_unique_filename, save_photo
+from src.utils import save_photo
 
 logger.info("Launching app...")
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup / shutdown control."""
+    app.state.shutting_down = False
+
+    logger.info("App startup complete.")
+
+    yield
+
+    logger.info("Shutdown initiated.")
+
+    app.state.shutting_down = True
+    save_photo_executor.shutdown(wait=True)
+
+    logger.info("Executor shutdown complete.")
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET)
 
@@ -45,19 +63,9 @@ def require_login(request: Request):
     return user
 
 
-@app.on_event("shutdown")
-def shutdown_event():
-    """Safely shut down app."""
-
-    logger.info("Shutting down app...")
-    save_photo_executor.shutdown(wait=True)
-    logger.info("Closed save-photo executor.")
-    logger.info("App shut down.")
-
-
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    """Login page."""
+    """Serve the Login page."""
     return templates.TemplateResponse("login.html", {"request": request})
 
 
@@ -84,13 +92,13 @@ async def login_action(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, user: str = Depends(require_login)):
-    """Home page."""
+    """Serve the Home page."""
     return templates.TemplateResponse("index.html", {"request": request, "name": NAME})
 
 
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_form(request: Request, user: str = Depends(require_login)):
-    """Upload page."""
+    """Serve the Upload page."""
     return templates.TemplateResponse("upload.html", {"request": request})
 
 
@@ -102,13 +110,19 @@ async def upload_photos(
 ):
     """Upload multiple photos."""
 
+    if request.app.state.shutting_down:
+        raise HTTPException(
+            status_code=503,
+            detail="Server is shutting down. Uploads temporarily unavailable.",
+        )
+
     success_count = 0
     error_count = 0
 
     try:
         for file in files:
             filename = file.filename or ""
-            ext = os.path.splitext(filename)[1].lower()
+            ext = os.path.splitext(filename)[-1].lower()
 
             if (
                 ext not in ALLOWED_EXTENSIONS
@@ -121,14 +135,23 @@ async def upload_photos(
                 continue
 
             # get unique + safe filename
-            unique_filename = get_unique_filename(manifest, file.filename)
+            unique_filename = f"{uuid.uuid4()}{ext}"
             file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
 
+            # read contents (because UploadFile is not thread-safe)
+            contents = await file.read()
+            content_type = file.content_type
+
             await asyncio.get_running_loop().run_in_executor(
-                save_photo_executor, save_photo, file_location, file, user
+                save_photo_executor,
+                save_photo,
+                file_location,
+                contents,
+                unique_filename,
+                content_type,
+                user,
             )
 
-            manifest.add(unique_filename)
             logger.info(f"File '{unique_filename}' uploaded by user '{user}'.")
             success_count += 1
 
@@ -160,6 +183,14 @@ async def upload_photos(
 async def view_photos(request: Request, user: str = Depends(require_login)):
     """Photo gallery page."""
 
+    # fetch current list of photos
+    manifest = await asyncio.to_thread(os.listdir, "src/photos")
+    manifest = [
+        file
+        for file in manifest
+        if file.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+    ]
+
     try:
 
         return templates.TemplateResponse(
@@ -181,11 +212,6 @@ async def serve_photo(
     """Serve photos for the gallery."""
 
     try:
-        # ensure the file is inside the photos folder
-        if filename not in manifest:
-            logger.warning(f"User '{user}' requested invalid file: {filename}")
-            return HTMLResponse("File not found.", status_code=HTTP_404_NOT_FOUND)
-
         file_path = f"{UPLOAD_FOLDER}/{filename}"
 
         return FileResponse(file_path)
@@ -205,4 +231,3 @@ async def veggies(user: str = Depends(require_login)):
 
 
 logger.info("App is running.")
-logger.info(f"Current manifest: {manifest}")
