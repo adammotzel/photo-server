@@ -31,6 +31,15 @@ PYTHONPATH='/absolute/path/to/your/project'
 SECRET='somesupersecretkey'
 ```
 
+You can generate a good secret for the middleware like this:
+```python
+import secrets
+
+secret = secrets.token_urlsafe(64)
+print(secret)
+```
+It's not required, but it is a good practice.
+
 3. Set up a virtual environment using `uv` (if you don't have `uv`, you can install it [here](https://docs.astral.sh/uv/getting-started/installation/)):
 
 ```bash

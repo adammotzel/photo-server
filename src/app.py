@@ -8,17 +8,19 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 
+from src.auth import hash_password, verify_password
+from src.concurrency import run_blocking
 from src.config import (
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES,
+    BLOCKING_EXECUTOR,
     NAME,
-    PASSWORD,
     SECRET,
     UPLOAD_FOLDER,
     logger,
-    save_photo_executor,
     templates,
 )
+from src.db import create_user, get_user_by_id, get_user_by_username
 from src.utils import save_photo
 
 logger.info("Launching app...")
@@ -27,6 +29,7 @@ logger.info("Launching app...")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown control."""
+
     app.state.shutting_down = False
 
     logger.info("App startup complete.")
@@ -36,7 +39,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutdown initiated.")
 
     app.state.shutting_down = True
-    save_photo_executor.shutdown(wait=True)
+
+    BLOCKING_EXECUTOR.shutdown(wait=True)
 
     logger.info("Executor shutdown complete.")
 
@@ -55,21 +59,70 @@ logger.info("Setting up endpoints...")
 # ---------- ENDPOINTS ----------
 
 
-def require_login(request: Request):
+async def require_login(request: Request):
     """Check login session. Redirect to login page if session DNE."""
 
-    user = request.session.get("user")
-    if not user:
+    user_id = request.session.get("user_id")
+    if not user_id:
         raise HTTPException(
-            status_code=302, detail="Redirect", headers={"Location": "/login"}
+            status_code=302,
+            headers={"Location": "/login"},
         )
-    return user
+
+    return await get_user_by_id(user_id)
 
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    """Serve the Login page."""
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "registered": request.query_params.get("registered")},
+    )
+
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_form(request: Request):
+    """Serve Registration form."""
+    return templates.TemplateResponse("register.html", {"request": request})
+
+
+@app.post("/register")
+async def register(request: Request):
+    """Request to register a new user."""
+
+    form = await request.form()
+    username = form.get("name")
+    password = form.get("password")
+
+    logger.info("Request received to register new user.")
+
+    if not username or not password:
+        return templates.TemplateResponse(
+            "register.html",
+            {"request": request, "error": "Missing username or password"},
+        )
+
+    logger.info("Checking if supplied username exists...")
+
+    username_str = str(username)
+    existing = await get_user_by_username(username_str)
+    if existing:
+        logger.warning("Supplied username already exists. Rejecting registration.")
+        return templates.TemplateResponse(
+            "register.html", {"request": request, "error": "Username already exists"}
+        )
+
+    logger.info("Creating new user...")
+
+    hashed = await hash_password(str(password))
+    await create_user(username_str, hashed)
+
+    logger.info("New user created successfully.")
+
+    # optional: clear session just in case
+    request.session.clear()
+
+    return RedirectResponse("/login?registered=1", status_code=302)
 
 
 @app.post("/login")
@@ -77,30 +130,48 @@ async def login_action(request: Request):
     """Submit login information."""
 
     form = await request.form()
-    un = form.get("name")
-    pw = form.get("password")
+    username = form.get("name")
+    password = form.get("password")
 
-    # check creds and remember user
-    if pw == PASSWORD:
-        request.session["user"] = un
-        logger.info(f"User '{un}' has logged into the app.")
-        return RedirectResponse("/", status_code=302)
+    logger.info("Login request received. Validating credentials...")
 
-    logger.warning(f"Invalid login attempt by user '{un}'.")
+    if not username or not password:
+        return templates.TemplateResponse(
+            "login.html", {"request": request, "error": "Invalid username or password"}
+        )
 
-    return templates.TemplateResponse(
-        "login.html", {"request": request, "error": "Invalid username or password"}
-    )
+    user = await get_user_by_username(str(username))
+
+    if not user:
+        logger.warning("Invalid login attempt. Rejecting login.")
+        return templates.TemplateResponse(
+            "login.html", {"request": request, "error": "Invalid username or password"}
+        )
+
+    verify = await verify_password(str(password), user["password_hash"])
+
+    if not verify:
+        logger.warning("Invalid login attempt. Rejecting login.")
+        return templates.TemplateResponse(
+            "login.html", {"request": request, "error": "Invalid username or password"}
+        )
+
+    request.session["user_id"] = user["id"]
+    request.session["username"] = user["username"]
+
+    logger.info("Login request accepted.")
+
+    return RedirectResponse("/", status_code=302)
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request, user: str = Depends(require_login)):
+async def read_root(request: Request, user: dict = Depends(require_login)):
     """Serve the Home page."""
     return templates.TemplateResponse("index.html", {"request": request, "name": NAME})
 
 
 @app.get("/upload", response_class=HTMLResponse)
-async def upload_form(request: Request, user: str = Depends(require_login)):
+async def upload_form(request: Request, user: dict = Depends(require_login)):
     """Serve the Upload page."""
     return templates.TemplateResponse("upload.html", {"request": request})
 
@@ -109,16 +180,24 @@ async def upload_form(request: Request, user: str = Depends(require_login)):
 async def upload_photos(
     request: Request,
     files: List[UploadFile] = File(...),
-    user: str = Depends(require_login),
+    user: dict = Depends(require_login),
 ):
     """Upload multiple photos."""
 
+    logger.info(f"Request received to upload {len(files)} files.")
+
     if request.app.state.shutting_down:
+        logger.warning("App is shutting down; rejecting upload attempt.")
         raise HTTPException(
             status_code=503,
             detail="Server is shutting down. Uploads temporarily unavailable.",
         )
 
+    logger.info("Uploading files...")
+
+    loop = asyncio.get_running_loop()
+
+    tasks = []
     success_count = 0
     error_count = 0
 
@@ -145,18 +224,32 @@ async def upload_photos(
             contents = await file.read()
             content_type = file.content_type
 
-            await asyncio.get_running_loop().run_in_executor(
-                save_photo_executor,
-                save_photo,
-                file_location,
-                contents,
-                unique_filename,
-                content_type,
-                user,
+            tasks.append(
+                loop.run_in_executor(
+                    BLOCKING_EXECUTOR,
+                    save_photo,
+                    file_location,
+                    contents,
+                    unique_filename,
+                    content_type,
+                    user["username"],
+                )
             )
 
-            logger.info(f"File '{unique_filename}' uploaded by user '{user}'.")
-            success_count += 1
+        results = await asyncio.gather(
+            *tasks,
+            return_exceptions=True,
+        )
+
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(
+                    "Photo upload task failed.",
+                    exc_info=result,
+                )
+                error_count += 1
+            else:
+                success_count += 1
 
         if success_count == 0:
             return templates.TemplateResponse(
@@ -183,16 +276,20 @@ async def upload_photos(
 
 
 @app.get("/photos", response_class=HTMLResponse)
-async def view_photos(request: Request, user: str = Depends(require_login)):
+async def view_photos(request: Request, user: dict = Depends(require_login)):
     """Photo gallery page."""
 
+    logger.info("Request received to view photo gallery.")
+
     # fetch current list of photos
-    manifest = await asyncio.to_thread(os.listdir, "src/photos")
+    manifest = await run_blocking(os.listdir, "src/photos")
     manifest = [
         file
         for file in manifest
         if isinstance(file, str) and file.lower().endswith(ALLOWED_EXTENSIONS)
     ]
+
+    logger.info(f"Surfacing {len(manifest)} photos for the gallery...")
 
     try:
 
@@ -210,12 +307,12 @@ async def view_photos(request: Request, user: str = Depends(require_login)):
 
 @app.get("/photos/{filename}", response_class=FileResponse)
 async def serve_photo(
-    filename: str, request: Request, user: str = Depends(require_login)
+    filename: str, request: Request, user: dict = Depends(require_login)
 ):
     """Serve photos for the gallery."""
 
     try:
-        file_path = f"{UPLOAD_FOLDER}/{filename}"
+        file_path = os.path.join(UPLOAD_FOLDER, os.path.basename(filename))
 
         return FileResponse(file_path)
 
@@ -228,9 +325,7 @@ async def serve_photo(
 
 
 @app.get("/veggietales")
-async def veggies(user: str = Depends(require_login)):
+async def veggies(user: dict = Depends(require_login)):
     """Oh, where is my hairbrush?"""
+    logger.warning("No hair for my hairbrush!")
     return RedirectResponse(url="https://www.youtube.com/watch?v=i3fL5e4ECYs")
-
-
-logger.info("App is running.")
