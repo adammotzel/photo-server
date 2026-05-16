@@ -1,19 +1,17 @@
-import asyncio
 import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import List
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.auth import hash_password, verify_password
-from src.concurrency import run_blocking
 from src.config import (
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES,
-    BLOCKING_EXECUTOR,
     NAME,
     SECRET,
     UPLOAD_FOLDER,
@@ -40,9 +38,7 @@ async def lifespan(app: FastAPI):
 
     app.state.shutting_down = True
 
-    BLOCKING_EXECUTOR.shutdown(wait=True)
-
-    logger.info("Executor shutdown complete.")
+    logger.info("Shutdown complete.")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -69,7 +65,11 @@ async def require_login(request: Request):
             headers={"Location": "/login"},
         )
 
-    return await get_user_by_id(user_id)
+    user = await run_in_threadpool(
+        get_user_by_id,
+        user_id,
+    )
+    return user
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -105,7 +105,11 @@ async def register(request: Request):
     logger.info("Checking if supplied username exists...")
 
     username_str = str(username)
-    existing = await get_user_by_username(username_str)
+    existing = await run_in_threadpool(
+        get_user_by_username,
+        username_str,
+    )
+
     if existing:
         logger.warning("Supplied username already exists. Rejecting registration.")
         return templates.TemplateResponse(
@@ -114,8 +118,16 @@ async def register(request: Request):
 
     logger.info("Creating new user...")
 
-    hashed = await hash_password(str(password))
-    await create_user(username_str, hashed)
+    # use separate ProcessPoolExecutor???
+    hashed = run_in_threadpool(
+        hash_password,
+        str(password),
+    )
+    await run_in_threadpool(
+        create_user,
+        username_str,
+        str(hashed),
+    )
 
     logger.info("New user created successfully.")
 
@@ -140,7 +152,10 @@ async def login_action(request: Request):
             "login.html", {"request": request, "error": "Invalid username or password"}
         )
 
-    user = await get_user_by_username(str(username))
+    user = await run_in_threadpool(
+        get_user_by_username,
+        str(username),
+    )
 
     if not user:
         logger.warning("Invalid login attempt. Rejecting login.")
@@ -148,7 +163,11 @@ async def login_action(request: Request):
             "login.html", {"request": request, "error": "Invalid username or password"}
         )
 
-    verify = await verify_password(str(password), user["password_hash"])
+    verify = await run_in_threadpool(
+        verify_password,
+        str(password),
+        user["password_hash"],
+    )
 
     if not verify:
         logger.warning("Invalid login attempt. Rejecting login.")
@@ -195,14 +214,11 @@ async def upload_photos(
 
     logger.info("Uploading files...")
 
-    loop = asyncio.get_running_loop()
-
-    tasks = []
     success_count = 0
     error_count = 0
 
-    try:
-        for file in files:
+    for file in files:
+        try:
             filename = file.filename or ""
             ext = os.path.splitext(filename)[-1].lower()
 
@@ -220,59 +236,38 @@ async def upload_photos(
             unique_filename = f"{uuid.uuid4()}{ext}"
             file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
 
-            # read contents (because UploadFile is not thread-safe)
             contents = await file.read()
             content_type = file.content_type
 
-            tasks.append(
-                loop.run_in_executor(
-                    BLOCKING_EXECUTOR,
-                    save_photo,
-                    file_location,
-                    contents,
-                    unique_filename,
-                    content_type,
-                    user["username"],
-                )
+            await run_in_threadpool(
+                save_photo,
+                file_location,
+                contents,
+                unique_filename,
+                content_type,
+                user["username"],
             )
 
-        results = await asyncio.gather(
-            *tasks,
-            return_exceptions=True,
-        )
+            success_count += 1
+        except Exception:
+            logger.error("A file uploaded failed.", exc_info=True)
+            error_count += 1
 
-        for result in results:
-            if isinstance(result, Exception):
-                logger.error(
-                    "Photo upload task failed.",
-                    exc_info=result,
-                )
-                error_count += 1
-            else:
-                success_count += 1
-
-        if success_count == 0:
-            return templates.TemplateResponse(
-                "upload.html",
-                {
-                    "request": request,
-                    "success": False,
-                    "error": "No valid images were uploaded.",
-                },
-            )
-
-        logger.info(f"Uploaded {success_count} files and rejected {error_count} files.")
-
+    if success_count == 0:
         return templates.TemplateResponse(
-            "upload.html", {"request": request, "success": True}
+            "upload.html",
+            {
+                "request": request,
+                "success": False,
+                "error": "No valid images were uploaded.",
+            },
         )
 
-    except Exception:
-        logger.error("Failed to upload files.", exc_info=True)
+    logger.info(f"Uploaded {success_count} files and rejected {error_count} files.")
 
-        return templates.TemplateResponse(
-            "upload.html", {"request": request, "success": False, "error": True}
-        )
+    return templates.TemplateResponse(
+        "upload.html", {"request": request, "success": True}
+    )
 
 
 @app.get("/photos", response_class=HTMLResponse)
@@ -281,8 +276,10 @@ async def view_photos(request: Request, user: dict = Depends(require_login)):
 
     logger.info("Request received to view photo gallery.")
 
-    # fetch current list of photos
-    manifest = await run_blocking(os.listdir, "src/photos")
+    manifest = await run_in_threadpool(
+        os.listdir,
+        "src/photos",
+    )
     manifest = [
         file
         for file in manifest

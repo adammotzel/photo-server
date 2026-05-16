@@ -1,6 +1,5 @@
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor
 
 from dotenv import load_dotenv
 from fastapi.templating import Jinja2Templates
@@ -33,5 +32,3 @@ templates = Jinja2Templates(directory="src/templates")
 UPLOAD_FOLDER = "src/photos"
 ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 ALLOWED_MIME_TYPES = ("image/jpeg", "image/png", "image/gif", "image/webp")
-
-BLOCKING_EXECUTOR = ThreadPoolExecutor(max_workers=8)
