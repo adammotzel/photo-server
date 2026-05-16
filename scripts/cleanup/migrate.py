@@ -1,5 +1,7 @@
 """
 One-time script. Migrate JSON meta-data files to Postgres.
+
+You'll need a .env file in this directory with one secret, POSTGRES_PW.
 """
 
 import json

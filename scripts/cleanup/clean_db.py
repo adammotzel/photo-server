@@ -1,6 +1,8 @@
 """
 Remove records from 'photos' table if the associated photo does not actually 
 exist.
+
+You'll need a .env file in this directory with one secret, POSTGRES_PW.
 """
 import os
 import psycopg
