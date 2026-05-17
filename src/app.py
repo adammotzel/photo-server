@@ -18,7 +18,7 @@ from src.config import (
     logger,
     templates,
 )
-from src.db import create_user, get_user_by_id, get_user_by_username
+from src.db import create_user, get_user_by_id, get_user_by_username, pool
 from src.utils import save_photo
 
 logger.info("Launching app...")
@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
     """Startup / shutdown control."""
 
     app.state.shutting_down = False
+    pool.open()
 
     logger.info("App startup complete.")
 
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutdown initiated.")
 
     app.state.shutting_down = True
+    pool.close()
 
     logger.info("Shutdown complete.")
 
@@ -119,7 +121,7 @@ async def register(request: Request):
     logger.info("Creating new user...")
 
     # use separate ProcessPoolExecutor???
-    hashed = run_in_threadpool(
+    hashed = await run_in_threadpool(
         hash_password,
         str(password),
     )

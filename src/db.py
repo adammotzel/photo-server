@@ -1,20 +1,23 @@
 from typing import Any
 
-import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 
 from src.config import DB_HOST, DB_NAME, DB_PORT, DB_USER, POSTGRES_APP_PW
 
-
-def _connect() -> psycopg.Connection:
-    """Connect to the app database."""
-    return psycopg.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=POSTGRES_APP_PW,
-        host=DB_HOST,
-        port=DB_PORT,
-    )
+pool = ConnectionPool(
+    conninfo=(
+        f"dbname={DB_NAME} "
+        f"user={DB_USER} "
+        f"password={POSTGRES_APP_PW} "
+        f"host={DB_HOST} "
+        f"port={DB_PORT}"
+    ),
+    min_size=2,
+    max_size=10,  # can be changed
+    timeout=30,
+    open=False,
+)
 
 
 def write_photo_metadata(
@@ -40,7 +43,7 @@ def write_photo_metadata(
     None
     """
 
-    with _connect() as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -58,8 +61,6 @@ def write_photo_metadata(
                 (stored_filename, content_type, uploaded_by),
             )
 
-        conn.commit()
-
 
 def get_user_by_username(username: str) -> dict[str, Any] | None:
     """
@@ -76,7 +77,7 @@ def get_user_by_username(username: str) -> dict[str, Any] | None:
         Dict representation of the database table record.
     """
 
-    with _connect() as conn:
+    with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT * FROM users WHERE username = %s", (username,))
             return cur.fetchone()
@@ -97,7 +98,7 @@ def get_user_by_id(user_id: str) -> dict[str, Any] | None:
         Dict representation of the database table record.
     """
 
-    with _connect() as conn:
+    with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
             return cur.fetchone()
@@ -119,14 +120,12 @@ def create_user(username: str, password_hash: str):
     None
     """
 
-    with _connect() as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO users (username, password_hash)
                 VALUES (%s, %s)
-                RETURNING id
                 """,
                 (username, password_hash),
             )
-            conn.commit()
