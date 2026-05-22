@@ -2,6 +2,7 @@ import os
 import tempfile
 
 from src.db import write_photo_metadata
+from src.logger import logger
 
 
 def save_photo(
@@ -42,6 +43,8 @@ def save_photo(
     directory = os.path.dirname(file_location)
 
     temp_file = None
+
+    logger.info(f"Saving photo {stored_filename}...")
 
     try:
         # create temp file in SAME directory

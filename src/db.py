@@ -4,6 +4,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from src.config import DB_HOST, DB_NAME, DB_PORT, DB_USER, POSTGRES_APP_PW
+from src.logger import logger
 
 pool = ConnectionPool(
     conninfo=(
@@ -42,6 +43,8 @@ def write_photo_metadata(
     -------
     None
     """
+
+    logger.info(f"Writing metadata for {stored_filename}...")
 
     with pool.connection() as conn:
         with conn.cursor() as cur:
@@ -119,6 +122,8 @@ def create_user(username: str, password_hash: str):
     -------
     None
     """
+
+    logger.info("Creating new user...")
 
     with pool.connection() as conn:
         with conn.cursor() as cur:
