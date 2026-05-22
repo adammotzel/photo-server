@@ -1,18 +1,7 @@
-import logging
 import os
 
 from dotenv import load_dotenv
 from fastapi.templating import Jinja2Templates
-
-# custom logger
-logger = logging.getLogger(__file__)
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    "%(asctime)s | %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H-%M-%S"
-)
-sh = logging.StreamHandler()
-sh.setFormatter(formatter)
-logger.addHandler(sh)
 
 # valid creds
 load_dotenv()

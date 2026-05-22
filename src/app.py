@@ -15,13 +15,11 @@ from src.config import (
     NAME,
     SECRET,
     UPLOAD_FOLDER,
-    logger,
     templates,
 )
 from src.db import create_user, get_user_by_id, get_user_by_username, pool
+from src.logger import listener, logger
 from src.utils import save_photo
-
-logger.info("Launching app...")
 
 
 @asynccontextmanager
@@ -29,18 +27,16 @@ async def lifespan(app: FastAPI):
     """Startup / shutdown control."""
 
     app.state.shutting_down = False
+    listener.start()
     pool.open()
 
-    logger.info("App startup complete.")
-
     yield
-
-    logger.info("Shutdown initiated.")
 
     app.state.shutting_down = True
     pool.close()
 
     logger.info("Shutdown complete.")
+    listener.stop()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -49,9 +45,6 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET,  # ty: ignore[invalid-argument-type]
 )
-
-logger.info("Middleware has been added.")
-logger.info("Setting up endpoints...")
 
 
 # ---------- ENDPOINTS ----------
