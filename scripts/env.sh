@@ -1,6 +1,6 @@
 #!/bin/bash
 
-uv venv --python 3.12
+uv venv
 
 source .venv/Scripts/activate || source .venv/bin/activate
 uv sync --all-extras

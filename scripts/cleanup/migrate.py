@@ -1,8 +1,4 @@
-"""
-One-time script. Migrate JSON meta-data files to Postgres.
-
-You'll need a .env file in this directory with one secret, POSTGRES_PW.
-"""
+"""One-time script. Migrate JSON meta-data files to Postgres."""
 
 import json
 import os
@@ -13,16 +9,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-POSRGRES_APP_PW = os.getenv("POSTGRES_PW")
-PHOTO_DIR = Path("src/photos")
+DB_CONFIG = {
+    "host": "localhost",
+    "port": 5432,
+    "dbname": "photoapp",
+    "user": "photoapp_user",
+    "password": os.getenv("POSTGRES_PW")
+}
 
-DB_CONN_INFO = (
-    "dbname=photoapp "
-    "user=photoapp_user "
-    "password={} "
-    "host=localhost "
-    "port=5432"
-).format(POSRGRES_APP_PW)
+PHOTO_DIR = Path("src/photos")
 
 INSERT_PHOTO_SQL = """
 INSERT INTO photos (
@@ -41,7 +36,7 @@ def main():
 
     print(f"Found {len(json_files)} metadata files")
 
-    with psycopg.connect(DB_CONN_INFO) as conn:
+    with psycopg.connect(**DB_CONFIG) as conn:
         with conn.cursor() as cur:
 
             for json_file in json_files:

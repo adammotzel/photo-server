@@ -12,7 +12,12 @@ POSTGRES_APP_PW = os.getenv("POSTGRES_PW")
 # DB config
 DB_HOST = "localhost"
 DB_PORT = "5432"
-DB_NAME = "photoapp"
+
+if os.getenv("ENVIRONMENT") == "test":
+    DB_NAME = "photoapp_test"
+else:
+    DB_NAME = "photoapp"
+
 DB_USER = "photoapp_user"
 
 # file serving

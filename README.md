@@ -45,14 +45,14 @@ It's not required, but it's a good practice.
 #### 4. Set up a virtual environment using `uv` (if you don't have `uv`, you can install it [here](https://docs.astral.sh/uv/getting-started/installation/)):
 
 ```bash
-uv venv --python 3.12
+uv venv
 ```
 
 #### 5. Activate the virtual env and install dependencies:
 
 ```bash
 source .venv/Scripts/activate || source .venv/bin/activate
-uv sync --all-extras
+uv sync
 ```
 
 #### 6. Run the app from the project root directory:
@@ -69,7 +69,7 @@ When you launch the app, click the "register" button and fill out the form. The 
 
 ### Notes
 
-The app will launch on host `0.0.0.0` (all available network interfaces) and port `8000` by default. You can change this in `scripts/run.py`.
+The app will launch on host `0.0.0.0` and port `8000` by default. You can change this in `scripts/run.py`.
 
 If you want to serve the app to other devices connected to your home Wi-Fi, you may need to allow inbound traffic on the port for private networks. This can be configured in your machine's firewall settings.
 
