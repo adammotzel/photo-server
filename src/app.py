@@ -1,11 +1,14 @@
+import io
 import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import List
 
+import torch
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from PIL import Image
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.auth import hash_password, verify_password
@@ -15,6 +18,8 @@ from src.config import (
     NAME,
     SECRET,
     UPLOAD_FOLDER,
+    model,
+    processor,
     templates,
 )
 from src.db import create_user, get_user_by_id, get_user_by_username, pool
@@ -234,35 +239,68 @@ async def upload_photos(
             contents = await file.read()
             content_type = file.content_type
 
-            await run_in_threadpool(
-                save_photo,
-                file_location,
-                contents,
-                unique_filename,
-                content_type,
-                user["username"],
-            )
+            image = Image.open(io.BytesIO(contents))
+            inputs = processor(image, return_tensors="pt")
 
-            success_count += 1
+            with torch.no_grad():
+                logits = model(**inputs).logits
+
+            predicted_id = logits.argmax(-1).item()
+            predicted_label = model.config.id2label[predicted_id]
+
+            if predicted_label != "dog":
+                logger.warning(
+                    f"Image rejected. Expected a dog, received '{predicted_label}'"
+                )
+                error_count += 1
+            else:
+                await run_in_threadpool(
+                    save_photo,
+                    file_location,
+                    contents,
+                    unique_filename,
+                    content_type,
+                    user["username"],
+                )
+                success_count += 1
         except Exception:
             logger.error("A file uploaded failed.", exc_info=True)
             error_count += 1
 
+    # everything failed
     if success_count == 0:
         return templates.TemplateResponse(
             "upload.html",
             {
                 "request": request,
                 "success": False,
+                "partial": False,
                 "error": "No valid images were uploaded.",
             },
         )
 
-    logger.info(f"Uploaded {success_count} files and rejected {error_count} files.")
+    # at least one image was uploaded
+    elif error_count > 0:
+        msg = f"Accepted {success_count} image(s), rejected {error_count} image(s)."
+        logger.info(msg)
 
-    return templates.TemplateResponse(
-        "upload.html", {"request": request, "success": True}
-    )
+        return templates.TemplateResponse(
+            "upload.html",
+            {
+                "request": request,
+                "success": False,
+                "partial": True,
+                "error": msg,
+            },
+        )
+
+    # all images were uploaded
+    else:
+        logger.info(f"Uploaded {success_count} files.")
+
+        return templates.TemplateResponse(
+            "upload.html", {"request": request, "success": True}
+        )
 
 
 @app.get("/photos", response_class=HTMLResponse)
