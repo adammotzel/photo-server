@@ -1,6 +1,6 @@
 [project]
 name = "photo-server"
-version = "0.2.2"
+version = "0.3.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.118.0",
@@ -13,10 +13,15 @@ dependencies = [
     "psycopg[binary,pool]>=3.3.4",
     "argon2-cffi>=25.1.0",
     "virtualenv>=20.36.2", # because of security issues in earlier versions
+    "transformers>=5.12.1",
+    "pillow>=12.2.0",
+    "torch>=2.12.1",
+    "torchvision>=0.27.1",
 ]
 
 [dependency-groups]
 dev = [
+    "ipykernel>=7.3.0",
     "locust>=2.44.3",
     "pre-commit>=4.5.0",
     "ty>=0.0.35",

@@ -190,3 +190,4 @@ cython_debug/
 # Custom
 TODO
 users.csv
+efficientnet-b0/

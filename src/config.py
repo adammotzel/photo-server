@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from fastapi.templating import Jinja2Templates
+from transformers import AutoImageProcessor, AutoModelForImageClassification
 
 # valid creds
 load_dotenv()
@@ -26,3 +27,9 @@ templates = Jinja2Templates(directory="src/templates")
 UPLOAD_FOLDER = "src/photos"
 ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 ALLOWED_MIME_TYPES = ("image/jpeg", "image/png", "image/gif", "image/webp")
+
+# image classifier
+_wd = os.getcwd()
+_model_path = f"{_wd}/models/efficientnet-b0"
+processor = AutoImageProcessor.from_pretrained(_model_path)
+model = AutoModelForImageClassification.from_pretrained(_model_path)

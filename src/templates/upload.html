@@ -30,6 +30,10 @@
             color: red;
         }
 
+        .partial {
+            color: purple;
+        }
+
         form {
             display: inline-block;
             margin-top: 20px;
@@ -111,6 +115,8 @@
 
     {% if success %}
         <div class="message success">✅ Photo(s) uploaded successfully!</div>
+    {% elif partial %}
+        <div class="message partial">{{ error }}</div>
     {% elif error %}
         <div class="message error">❌ Upload failed. Please try again.</div>
     {% endif %}
