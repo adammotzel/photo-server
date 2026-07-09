@@ -73,13 +73,13 @@ Update the classifier's `config.json` file so that all dog breeds have the label
 
 If your pet is not a dog, you'll have to edit the config accordingly.
 
-#### 7. Run the app from the project root directory:
+#### 8. Run the app from the project root directory:
 
 ```bash
 python -m scripts.run
 ```
 
-#### 7. Create a new user for the app
+#### 9. Create a new user for the app
 
 You'll need to register a user to log into the app. Registered usernames and passwords are used for authentication and photo metadata.
 
