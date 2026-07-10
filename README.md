@@ -13,21 +13,24 @@ A quick side project to serve photos of my dog on a web app to anyone connected 
 - Ability for users to upload new photos
 - Ability for users to view all uploaded photos in a "gallery"
 
-I've also added an image verification layer that employs the `efficientnet-b0` vision model to only allow images of dogs to be uploaded to the app. I downloaded the model locally (using `scripts/models/download.py`) then manually changed the labels of all dog breeds to "dog" in `config.json`. Kind of lazy, but it's a simple approach to effectively making it a binary classifier ("dog" vs. "not dog").
+I've also added an image verification layer that employs the `efficientnet-b0` vision model to only allow images of dogs to be uploaded to the app. I downloaded the model locally (using `scripts/models/download.py`) then manually changed the labels of all dog breeds to "dog" in the model config. Kind of lazy, but it's a simple approach to effectively making it a binary classifier ("dog" vs. "not dog").
 
 ## Setup and Usage
+
 To run the app yourself, follow these steps:
 
-#### 1. Clone the repo:
+#### 1. Clone the repo
 
 ```bash
 git clone https://github.com/adammotzel/photo-server.git
 cd photo-server
 ```
 
-#### 2. Follow the instructions in `docs/POSTGRES-SETUP.md` to set up the PostreSQL database.
+#### 2. Set up the PostreSQL database
 
-#### 3. Create a `src/.env` file:
+Follow the instructions in `docs/POSTGRES-SETUP.md`.
+
+#### 3. Create a `src/.env` file
 
     1. `NAME`: The name of your pet, to be injected into the HTML templates.
     2. `SECRET`: Absolute path to the project.
@@ -48,32 +51,34 @@ print(secret)
 ```
 It's not required, but it's a good practice.
 
-#### 4. Set up a virtual environment using `uv` (if you don't have `uv`, you can install it [here](https://docs.astral.sh/uv/getting-started/installation/)):
+#### 4. Set up a virtual environment 
+
+Create the environment using `uv`. If you don't have `uv`, you can install it [here](https://docs.astral.sh/uv/getting-started/installation/)).
 
 ```bash
 uv venv
 ```
 
-#### 5. Activate the virtual env and install dependencies:
+#### 5. Activate the virtual env and install dependencies
 
 ```bash
 source .venv/Scripts/activate || source .venv/bin/activate
 uv sync
 ```
 
-#### 6. Download the image classification model:
+#### 6. Download the image classification model
 
 ```bash
 python scripts/models/download.py
 ```
 
-#### 7. Update the classifier config:
+#### 7. Update the classifier config
 
 Update the classifier's `config.json` file so that all dog breeds have the label 'dog'. I left a copy of the edited `id2label` property in `docs/CLASSIFIER-CONFIG.md` so you can just copy it over.
 
 If your pet is not a dog, you'll have to edit the config accordingly.
 
-#### 8. Run the app from the project root directory:
+#### 8. Run the app from the project root directory
 
 ```bash
 python -m scripts.run
@@ -113,4 +118,4 @@ I chose to use `psycopg` for database interactions. It's lighter and faster than
 
 ### Image Verification Layer
 
-Google's `efficientnet-b0` vision model offers solid accuracy and low resource consumption; perfect for an app served on CPU.
+Google's `efficientnet-b0` vision model offers solid accuracy and low resource consumption. It works great for a small app served on CPU.
