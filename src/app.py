@@ -1,14 +1,12 @@
-import io
+import asyncio
 import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import List
 
-import torch
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from PIL import Image
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.auth import hash_password, verify_password
@@ -18,12 +16,11 @@ from src.config import (
     NAME,
     SECRET,
     UPLOAD_FOLDER,
-    model,
-    processor,
     templates,
 )
 from src.db import create_user, get_user_by_id, get_user_by_username, pool
 from src.logger import listener, logger
+from src.model import inference
 from src.utils import save_photo
 
 
@@ -50,6 +47,66 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET,  # ty: ignore[invalid-argument-type]
 )
+
+
+async def _process_upload(file: UploadFile, username: str) -> bool:
+    """
+    Validate, classify, and save a single uploaded photo. Returns True on success.
+
+    Parameters
+    ----------
+    file : UploadFile
+        File to upload.
+    username : str
+        Username of the uploader.
+
+    Returns
+    -------
+    bool
+        If the upload was successful.
+    """
+
+    try:
+        filename = file.filename or ""
+        ext = os.path.splitext(filename)[-1].lower()
+
+        if ext not in ALLOWED_EXTENSIONS or file.content_type not in ALLOWED_MIME_TYPES:
+            logger.warning(
+                f"Rejected file '{file.filename}': unsupported file type ({file.content_type})."
+            )
+            return False
+
+        # get unique + safe filename
+        unique_filename = f"{uuid.uuid4()}{ext}"
+        file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
+
+        contents = await file.read()
+        content_type = file.content_type
+
+        # check for dawgs
+        predicted_label = await run_in_threadpool(
+            inference,
+            contents,
+        )
+
+        if predicted_label != "dog":
+            logger.warning(
+                f"Image rejected. Expected a dog, received '{predicted_label}'"
+            )
+            return False
+
+        await run_in_threadpool(
+            save_photo,
+            file_location,
+            contents,
+            unique_filename,
+            content_type,
+            username,
+        )
+        return True
+    except Exception:
+        logger.error("A file uploaded failed.", exc_info=True)
+        return False
 
 
 # ---------- ENDPOINTS ----------
@@ -214,58 +271,12 @@ async def upload_photos(
 
     logger.info("Uploading files...")
 
-    success_count = 0
-    error_count = 0
+    results = await asyncio.gather(
+        *(_process_upload(file, user["username"]) for file in files)
+    )
 
-    for file in files:
-        try:
-            filename = file.filename or ""
-            ext = os.path.splitext(filename)[-1].lower()
-
-            if (
-                ext not in ALLOWED_EXTENSIONS
-                or file.content_type not in ALLOWED_MIME_TYPES
-            ):
-                logger.warning(
-                    f"Rejected file '{file.filename}': unsupported file type ({file.content_type})."
-                )
-                error_count += 1
-                continue
-
-            # get unique + safe filename
-            unique_filename = f"{uuid.uuid4()}{ext}"
-            file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
-
-            contents = await file.read()
-            content_type = file.content_type
-
-            image = Image.open(io.BytesIO(contents))
-            inputs = processor(image, return_tensors="pt")
-
-            with torch.no_grad():
-                logits = model(**inputs).logits
-
-            predicted_id = logits.argmax(-1).item()
-            predicted_label = model.config.id2label[predicted_id]
-
-            if predicted_label != "dog":
-                logger.warning(
-                    f"Image rejected. Expected a dog, received '{predicted_label}'"
-                )
-                error_count += 1
-            else:
-                await run_in_threadpool(
-                    save_photo,
-                    file_location,
-                    contents,
-                    unique_filename,
-                    content_type,
-                    user["username"],
-                )
-                success_count += 1
-        except Exception:
-            logger.error("A file uploaded failed.", exc_info=True)
-            error_count += 1
+    success_count = sum(results)
+    error_count = len(results) - success_count
 
     # everything failed
     if success_count == 0:
