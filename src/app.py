@@ -2,7 +2,6 @@ import asyncio
 import os
 import uuid
 from contextlib import asynccontextmanager
-from typing import List
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -255,7 +254,7 @@ async def upload_form(request: Request, user: dict = Depends(require_login)):
 @app.post("/upload")
 async def upload_photos(
     request: Request,
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     user: dict = Depends(require_login),
 ):
     """Upload multiple photos."""
@@ -355,7 +354,10 @@ async def serve_photo(
     try:
         file_path = os.path.join(UPLOAD_FOLDER, os.path.basename(filename))
 
-        return FileResponse(file_path)
+        return FileResponse(
+            file_path,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
 
     except Exception:
         logger.error(f"Failed to fetch photo '{filename}'.", exc_info=True)

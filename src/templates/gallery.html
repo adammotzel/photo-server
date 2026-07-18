@@ -41,7 +41,7 @@
     <h1>Photo Gallery</h1>
     <div class="gallery">
         {% for photo in photos %}
-            <img src="/photos/{{ photo }}" alt="{{ photo }}">
+            <img src="/photos/{{ photo }}" alt="{{ photo }}" loading="lazy">
         {% else %}
             <p>No photos have been uploaded.</p>
         {% endfor %}
