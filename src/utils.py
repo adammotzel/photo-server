@@ -11,7 +11,7 @@ def save_photo(
     stored_filename: str,
     content_type: str | None,
     user: str,
-):
+) -> int:
     """
     Write photo to disk and photo metadata to Postgres.
 
@@ -39,6 +39,11 @@ def save_photo(
         File content type. Optional.
     user : str
         Name of the user that uploaded the photo.
+
+    Returns
+    -------
+    int
+        The 'id' of the new photo record.
     """
     directory = os.path.dirname(file_location)
 
@@ -66,7 +71,7 @@ def save_photo(
         # atomic rename
         os.replace(temp_file, file_location)
 
-        write_photo_metadata(
+        return write_photo_metadata(
             stored_filename=stored_filename,
             content_type=content_type,
             uploaded_by=user,

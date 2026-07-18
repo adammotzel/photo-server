@@ -25,7 +25,7 @@ def write_photo_metadata(
     stored_filename: str,
     content_type: str | None,
     uploaded_by: str,
-) -> None:
+) -> int:
     """
     Insert new record into 'photos' table. Record 'id' is auto-incremented and
     'uploaded_at' is generated upon insert.
@@ -41,7 +41,8 @@ def write_photo_metadata(
 
     Returns
     -------
-    None
+    int
+        The 'id' of the new photo record.
     """
 
     logger.info(f"Writing metadata for {stored_filename}...")
@@ -56,12 +57,82 @@ def write_photo_metadata(
                     uploaded_by
                 )
                 VALUES (
-                    %s, 
+                    %s,
+                    %s,
+                    %s
+                )
+                RETURNING id
+                """,
+                (stored_filename, content_type, uploaded_by),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise RuntimeError("Insert into 'photos' did not return an id.")
+            return row[0]
+
+
+def write_prediction(
+    photo_id: int | None,
+    original_filename: str,
+    predicted_label: str,
+    confidence: float,
+    accepted: bool,
+    uploaded_by: str,
+) -> None:
+    """
+    Insert new record into 'predictions' table for model evaluation.
+
+    Parameters
+    ----------
+    photo_id : int | None
+        'id' of the related 'photos' record, or None if the upload was rejected.
+    original_filename : str
+        Name of the file as uploaded by the user.
+    predicted_label : str
+        Label predicted by the classifier.
+    confidence : float
+        Confidence score of the predicted label.
+    accepted : bool
+        Whether the photo passed classification and was saved.
+    uploaded_by : str
+        Username of the uploader.
+
+    Returns
+    -------
+    None
+    """
+
+    logger.info(f"Writing prediction for {original_filename}...")
+
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO predictions (
+                    photo_id,
+                    original_filename,
+                    predicted_label,
+                    confidence,
+                    accepted,
+                    uploaded_by
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
                     %s,
                     %s
                 )
                 """,
-                (stored_filename, content_type, uploaded_by),
+                (
+                    photo_id,
+                    original_filename,
+                    predicted_label,
+                    confidence,
+                    accepted,
+                    uploaded_by,
+                ),
             )
 
 

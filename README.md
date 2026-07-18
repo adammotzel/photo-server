@@ -13,7 +13,7 @@ A quick side project to serve photos of my dog on a web app to anyone connected 
 - Ability for users to upload new photos
 - Ability for users to view all uploaded photos in a "gallery"
 
-I've also added an image verification layer that employs the `efficientnet-b0` vision model to only allow images of dogs to be uploaded to the app. I downloaded the model locally (using `scripts/models/download.py`) then manually changed the labels of all dog breeds to "dog" in the model config. Kind of lazy, but it's a simple approach to effectively making it a binary classifier ("dog" vs. "not dog").
+I've also added an image verification layer that employs the `efficientnet-b0` vision model to only allow images of dogs to be uploaded to the app. I downloaded the model locally (using `scripts/models/download.py`) then manually changed the labels of all dog breeds to "dog" in the model config. Pretty lazy, but it's a simple approach to effectively making it a binary classifier ("dog" vs. "not dog"). We'll see how it works out; maybe I'll need to fine-tune the model a bit.
 
 ## Setup and Usage
 

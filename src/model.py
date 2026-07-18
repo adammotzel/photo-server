@@ -6,7 +6,7 @@ from PIL import Image
 from src.config import model, processor
 
 
-def inference(contents: bytes) -> str:
+def inference(contents: bytes) -> tuple[str, float]:
     """
     Check if an image contains a dog.
 
@@ -17,8 +17,8 @@ def inference(contents: bytes) -> str:
 
     Returns
     -------
-    str
-        The predicted classification label.
+    tuple[str, float]
+        The predicted classification label and its confidence score.
     """
 
     image = Image.open(io.BytesIO(contents))
@@ -27,7 +27,9 @@ def inference(contents: bytes) -> str:
     with torch.no_grad():
         logits = model(**inputs).logits
 
-    predicted_id = logits.argmax(-1).item()
+    probabilities = torch.softmax(logits, dim=-1)
+    predicted_id = int(probabilities.argmax(-1).item())
     predicted_label = model.config.id2label[predicted_id]
+    confidence = probabilities[0, predicted_id].item()
 
-    return predicted_label
+    return predicted_label, confidence

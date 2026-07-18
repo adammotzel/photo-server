@@ -54,6 +54,37 @@ ON SEQUENCE photos_id_seq
 TO photoapp_user;
 ```
 
+### Predictions Table
+
+#### Create `predictions` table:
+```sql
+CREATE TABLE predictions (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    photo_id INT REFERENCES photos(id) ON DELETE SET NULL,
+    original_filename TEXT NOT NULL,
+    predicted_label TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    accepted BOOLEAN NOT NULL,
+    uploaded_by TEXT NOT NULL,
+    predicted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+`photo_id` is nullable because rejected uploads (predicted label != "dog") are never saved to 
+the `photos` table, but the prediction is still logged for model evaluation. `ON DELETE SET NULL` 
+keeps prediction history intact if a photo is later removed.
+
+#### Grant access to app user:
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON TABLE predictions
+TO photoapp_user;
+
+GRANT USAGE, SELECT, UPDATE 
+ON SEQUENCE predictions_id_seq 
+TO photoapp_user;
+```
+
 ### Users Table
 
 #### Create `users` table:

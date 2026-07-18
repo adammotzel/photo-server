@@ -17,7 +17,13 @@ from src.config import (
     UPLOAD_FOLDER,
     templates,
 )
-from src.db import create_user, get_user_by_id, get_user_by_username, pool
+from src.db import (
+    create_user,
+    get_user_by_id,
+    get_user_by_username,
+    pool,
+    write_prediction,
+)
 from src.logger import listener, logger
 from src.model import inference
 from src.utils import save_photo
@@ -83,7 +89,7 @@ async def _process_upload(file: UploadFile, username: str) -> bool:
         content_type = file.content_type
 
         # check for dawgs
-        predicted_label = await run_in_threadpool(
+        predicted_label, confidence = await run_in_threadpool(
             inference,
             contents,
         )
@@ -92,14 +98,32 @@ async def _process_upload(file: UploadFile, username: str) -> bool:
             logger.warning(
                 f"Image rejected. Expected a dog, received '{predicted_label}'"
             )
+            await run_in_threadpool(
+                write_prediction,
+                None,
+                filename,
+                predicted_label,
+                confidence,
+                False,
+                username,
+            )
             return False
 
-        await run_in_threadpool(
+        photo_id = await run_in_threadpool(
             save_photo,
             file_location,
             contents,
             unique_filename,
             content_type,
+            username,
+        )
+        await run_in_threadpool(
+            write_prediction,
+            photo_id,
+            filename,
+            predicted_label,
+            confidence,
+            True,
             username,
         )
         return True
