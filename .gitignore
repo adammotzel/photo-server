@@ -1,11 +1,3 @@
-# photos
-*.jpg
-*.img
-*.jpeg
-*.png
-*.gif
-*.webp
-
 # metadata files
 *.json
 
@@ -189,5 +181,13 @@ cython_debug/
 
 # Custom
 TODO
-users.csv
 efficientnet-b0/
+efficientnet-b0-dog-classifier/
+
+# photos
+*.jpg
+*.img
+*.jpeg
+*.png
+*.gif
+*.webp
