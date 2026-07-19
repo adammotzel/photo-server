@@ -38,7 +38,7 @@ CREATE TABLE photos (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
     stored_filename TEXT NOT NULL UNIQUE, 
     content_type TEXT, 
-    uploaded_by TEXT NOT NULL, 
+    uploader_ip TEXT NOT NULL, 
     uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
@@ -54,25 +54,33 @@ ON SEQUENCE photos_id_seq
 TO photoapp_user;
 ```
 
-### Users Table
+### Predictions Table
 
-#### Create `users` table:
+#### Create `predictions` table:
 ```sql
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE predictions (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    photo_id INT REFERENCES photos(id) ON DELETE SET NULL,
+    original_filename TEXT NOT NULL,
+    predicted_label TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    accepted BOOLEAN NOT NULL,
+    uploader_ip TEXT NOT NULL,
+    predicted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+
+`photo_id` is nullable because rejected uploads (predicted label != "dog") are never saved to 
+the `photos` table, but the prediction is still logged for model evaluation. `ON DELETE SET NULL` 
+keeps prediction history intact if a photo is later removed.
 
 #### Grant access to app user:
 ```sql
 GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE users
+ON TABLE predictions
 TO photoapp_user;
 
 GRANT USAGE, SELECT, UPDATE 
-ON SEQUENCE users_id_seq 
+ON SEQUENCE predictions_id_seq 
 TO photoapp_user;
 ```

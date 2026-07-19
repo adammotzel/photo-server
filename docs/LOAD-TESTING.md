@@ -2,7 +2,7 @@
 
 Load tests are defined in [tests/load_tests](../tests/load_tests/). 
 
-To run these tests on your instance of the application, first follow the instructions in [docs/POSTGRES-SETUP.md](docs/POSTGRES-SETUP.md) to create a new database, but name it `photoapp_test`. Then seed the test db with users by executing [scripts/tests/create_test_users.py](scripts/tests/create_test_users.py).
+To run these tests on your instance of the application, first follow the instructions in [docs/POSTGRES-SETUP.md](docs/POSTGRES-SETUP.md) to create a new database, but name it `photoapp_test`.
 
 # Run Load Tests
 
