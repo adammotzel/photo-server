@@ -28,7 +28,7 @@ DB_CONFIG = {
 PHOTO_DIR = Path("src/photos")
 
 SELECT_MISSING_SQL = """
-SELECT p.id, p.stored_filename, p.uploaded_by
+SELECT p.id, p.stored_filename, p.uploader_ip
 FROM photos p
 LEFT JOIN predictions pr ON pr.photo_id = p.id
 WHERE pr.id IS NULL
@@ -41,7 +41,7 @@ INSERT INTO predictions (
     predicted_label,
     confidence,
     accepted,
-    uploaded_by
+    uploader_ip
 )
 VALUES (%s, %s, %s, %s, %s, %s)
 """
@@ -58,7 +58,7 @@ def main():
 
     backfilled_count = 0
 
-    for photo_id, stored_filename, uploaded_by in rows:
+    for photo_id, stored_filename, uploader_ip in rows:
         file_path = PHOTO_DIR / stored_filename
 
         if not file_path.is_file():
@@ -77,7 +77,7 @@ def main():
                     predicted_label,
                     confidence,
                     True,
-                    uploaded_by,
+                    uploader_ip,
                 ),
             )
             conn.commit()

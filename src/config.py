@@ -7,7 +7,6 @@ from transformers import AutoImageProcessor, AutoModelForImageClassification
 # valid creds
 load_dotenv()
 NAME = os.getenv("NAME", "My Dog")
-SECRET = os.getenv("SECRET")
 POSTGRES_APP_PW = os.getenv("POSTGRES_PW")
 
 # DB config

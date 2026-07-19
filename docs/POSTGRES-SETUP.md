@@ -38,7 +38,7 @@ CREATE TABLE photos (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
     stored_filename TEXT NOT NULL UNIQUE, 
     content_type TEXT, 
-    uploaded_by TEXT NOT NULL, 
+    uploader_ip TEXT NOT NULL, 
     uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
@@ -65,7 +65,7 @@ CREATE TABLE predictions (
     predicted_label TEXT NOT NULL,
     confidence REAL NOT NULL,
     accepted BOOLEAN NOT NULL,
-    uploaded_by TEXT NOT NULL,
+    uploader_ip TEXT NOT NULL,
     predicted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
@@ -82,28 +82,5 @@ TO photoapp_user;
 
 GRANT USAGE, SELECT, UPDATE 
 ON SEQUENCE predictions_id_seq 
-TO photoapp_user;
-```
-
-### Users Table
-
-#### Create `users` table:
-```sql
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-#### Grant access to app user:
-```sql
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE users
-TO photoapp_user;
-
-GRANT USAGE, SELECT, UPDATE 
-ON SEQUENCE users_id_seq 
 TO photoapp_user;
 ```
