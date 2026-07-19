@@ -1,4 +1,10 @@
-I changed the image classifier's config so that all dog breeds just have a 'dog' label.
+> **Legacy approach.** This just relabels ImageNet classes and keeps the original
+> 1000-way head, which (I've observed) often produces false negatives. 
+> `scripts/models/finetune.py` replaces the head with a real 2-class
+> classifier and fine-tunes it on real photos; use that instead if you can. This
+> doc is kept as a zero-training fallback.
+
+Change the image classifier's config so that all dog breeds just have a 'dog' label.
 
 Here is a copy of the config:
 

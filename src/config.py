@@ -29,6 +29,6 @@ ALLOWED_MIME_TYPES = ("image/jpeg", "image/png", "image/gif", "image/webp")
 
 # image classifier
 _wd = os.getcwd()
-_model_path = f"{_wd}/models/efficientnet-b0"
+_model_path = f"{_wd}/models/efficientnet-b0-dog-classifier"
 processor = AutoImageProcessor.from_pretrained(_model_path)
 model = AutoModelForImageClassification.from_pretrained(_model_path)
