@@ -12,11 +12,11 @@ A quick side project to serve photos of my dog on a web app to anyone connected 
 - Ability for users to upload new photos, automatically attributed to the uploading device's LAN IP address (for tracking photo metadata; no user action needed)
 - Ability for users to view all uploaded photos in a "gallery"
 
-I've also added an image verification layer that employs the `efficientnet-b0` vision model to only allow images of dogs to be uploaded to the app. I downloaded the model locally (using `scripts/models/download.py`). My first pass was pretty lazy: I just relabeled all ImageNet dog-breed classes to "dog" in the model config and left the other 1000-way head in place. That produced a lot of false negatives, so I decided to fine-tune it. 
+I've also added an image verification layer that employs the `efficientnet-b0` vision model to only allow images of dogs to be uploaded to the app. My first pass was pretty lazy: I downloaded the model locally (using `scripts/models/download.py`), then relabeled all ImageNet dog-breed classes to "dog" in the model config and left all other classes in place. That approach ended up producing a lot of false negatives, so I decided to fine-tune the model.
 
-`scripts/models/finetune.py` replaces the classifier head with a real 2-class linear layer ("dog" / "not dog") and trains just that head (backbone frozen) on my own photos of my dog (`src/photos/`) plus a folder of "not dog" photos I collected (`data/training/`). The results are promising.
+The `scripts/models/finetune.py` script replaces the classifier head with a real 2-class linear layer ("dog" / "not dog") and trains just that head on "dog" photos (my dog) and "not dog" photos I collected.
 
-> NOTE: The efficientnet-b0 model and my fine-tuned model are not commited to the repository.
+> NOTE: The base efficientnet-b0 model and my fine-tuned version are not commited to the repository.
 
 ## Setup and Usage
 
@@ -66,7 +66,7 @@ python scripts/models/download.py
 
 #### 7. Fine-tune the classifier for your pet
 
-Add some photos of your pet to `src/photos/` (these double as upload examples and as the "positive" class for fine-tuning), then add a folder of "not your pet" photos at `data/training/`; people, rooms, outdoor scenes, whatever your app might realistically see. Roughly matching the count of your pet's photos, with some variety, works well.
+Add some photos of your pet to `src/photos/` (these double as upload examples and as the "positive" class for fine-tuning), then add a folder of "not your pet" photos at `data/training/`; people, rooms, outdoor scenes, whatever your app might realistically see. Roughly matching the count of your pet's photos, with some variety, should work well.
 
 Then run:
 
@@ -74,7 +74,7 @@ Then run:
 python -m scripts.models.finetune
 ```
 
-This replaces the classifier's head with a real 2-class linear layer and trains just that head (the rest of the model stays frozen), saving the result to `models/efficientnet-b0-dog-classifier`. `src/config.py` already points there.
+This replaces the classifier's head with a real 2-class linear layer and trains just that head, saving the result to `models/efficientnet-b0-dog-classifier`. The model will be used in the app by default.
 
 If you'd rather skip fine-tuning, `docs/CLASSIFIER-CONFIG.md` documents the original (much lazier, more false-negative-prone) approach of just relabeling ImageNet classes in the base model's config.
 
@@ -113,3 +113,9 @@ I chose to use `psycopg` for database interactions. It's lighter and faster than
 ### Image Verification Layer
 
 Google's `efficientnet-b0` vision model offers solid accuracy and low resource consumption. It works great for a small app served on CPU.
+
+## Testing
+
+A suite of tests for the app are defined in the `tests` directory. You can run them using the `pytest` command.
+
+See [docs/APP-TESTING.md](docs/APP-TESTING.md) for test configuration requirements.

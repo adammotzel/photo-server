@@ -1,6 +1,6 @@
 [project]
 name = "photo-server"
-version = "1.1.0"
+version = "1.2.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.118.0",
@@ -18,12 +18,21 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "ipykernel>=7.3.0",
     "locust>=2.44.3",
     "pre-commit>=4.5.0",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
     "ty>=0.0.35",
 ]
 
 [tool.isort]
 multi_line_output = 3
 include_trailing_comma = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["tests/load_tests"]
+pythonpath = ["."]
+addopts = "--cov=src --cov-report=term-missing"
