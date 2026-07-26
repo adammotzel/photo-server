@@ -1,9 +1,15 @@
 import io
+import os
 
 import torch
 from PIL import Image
+from transformers import AutoImageProcessor, AutoModelForImageClassification
 
-from src.config import model, processor
+# image classifier
+_wd = os.getcwd()
+_model_path = f"{_wd}/models/efficientnet-b0-dog-classifier"
+processor = AutoImageProcessor.from_pretrained(_model_path)
+model = AutoModelForImageClassification.from_pretrained(_model_path)
 
 
 def inference(contents: bytes) -> tuple[str, float]:

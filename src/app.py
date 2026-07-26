@@ -124,13 +124,13 @@ async def _process_upload(file: UploadFile, uploader_ip: str) -> bool:
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     """Serve the Home page."""
-    return templates.TemplateResponse("index.html", {"request": request, "name": NAME})
+    return templates.TemplateResponse(request, "index.html", {"name": NAME})
 
 
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_form(request: Request):
     """Serve the Upload page."""
-    return templates.TemplateResponse("upload.html", {"request": request})
+    return templates.TemplateResponse(request, "upload.html")
 
 
 @app.post("/upload")
@@ -163,9 +163,9 @@ async def upload_photos(
     # everything failed
     if success_count == 0:
         return templates.TemplateResponse(
+            request,
             "upload.html",
             {
-                "request": request,
                 "success": False,
                 "partial": False,
                 "error": "No valid images were uploaded.",
@@ -178,9 +178,9 @@ async def upload_photos(
         logger.info(msg)
 
         return templates.TemplateResponse(
+            request,
             "upload.html",
             {
-                "request": request,
                 "success": False,
                 "partial": True,
                 "error": msg,
@@ -191,9 +191,7 @@ async def upload_photos(
     else:
         logger.info(f"Uploaded {success_count} files.")
 
-        return templates.TemplateResponse(
-            "upload.html", {"request": request, "success": True}
-        )
+        return templates.TemplateResponse(request, "upload.html", {"success": True})
 
 
 @app.get("/photos", response_class=HTMLResponse)
@@ -204,7 +202,7 @@ async def view_photos(request: Request):
 
     manifest = await run_in_threadpool(
         os.listdir,
-        "src/photos",
+        UPLOAD_FOLDER,
     )
     manifest = [
         file
@@ -216,15 +214,13 @@ async def view_photos(request: Request):
 
     try:
 
-        return templates.TemplateResponse(
-            "gallery.html", {"request": request, "photos": manifest}
-        )
+        return templates.TemplateResponse(request, "gallery.html", {"photos": manifest})
 
     except Exception:
         logger.error("Failed to fetch photos.", exc_info=True)
 
         return templates.TemplateResponse(
-            "gallery.html", {"request": request, "success": False, "error": True}
+            request, "gallery.html", {"success": False, "error": True}
         )
 
 
@@ -244,7 +240,7 @@ async def serve_photo(filename: str, request: Request):
         logger.error(f"Failed to fetch photo '{filename}'.", exc_info=True)
 
         return templates.TemplateResponse(
-            "gallery.html", {"request": request, "success": False, "error": True}
+            request, "gallery.html", {"success": False, "error": True}
         )
 
 
