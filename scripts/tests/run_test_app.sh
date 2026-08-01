@@ -1,5 +1,5 @@
 #!/bin/bash
 
-export ENVIRONMENT="test"
+export TEST_ENV="yup"
 
 uv run python -m scripts.run
