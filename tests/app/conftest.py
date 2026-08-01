@@ -93,6 +93,8 @@ def force_inference(monkeypatch):
         -------
         None
         """
-        monkeypatch.setattr("src.app.inference", lambda contents: (label, confidence))
+        monkeypatch.setattr(
+            "src.app.inference", lambda processor, model, contents: (label, confidence)
+        )
 
     return _force

@@ -1,8 +1,6 @@
 # PostgreSQL Database Setup
 
-App database setup documentation. All steps must be completed using your Postgres admin user and the `psql` shell.
-
-If you don't have Postgres, download it [here](https://www.postgresql.org/download/).
+App database setup documentation. All steps completed using my Postgres admin user and the `psql` shell.
 
 ## Initial App Setup
 
@@ -11,14 +9,14 @@ If you don't have Postgres, download it [here](https://www.postgresql.org/downlo
 CREATE USER photoapp_user WITH PASSWORD "secret-goes-here";
 ```
 
-Store the secret in the `src/.env` file with the name `POSTGRES_PW`.
+The secret is stored in the `src/.env` file with the name `POSTGRES_PW`.
 
 #### Create new db:
 ```sql
 CREATE DATABASE photoapp;
 ```
 
-Switch to new db:
+#### Switch to new db:
 ```sql
 \c photoapp
 ```
@@ -38,7 +36,6 @@ CREATE TABLE photos (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
     stored_filename TEXT NOT NULL UNIQUE, 
     content_type TEXT, 
-    uploader_ip TEXT NOT NULL, 
     uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
@@ -54,6 +51,30 @@ ON SEQUENCE photos_id_seq
 TO photoapp_user;
 ```
 
+### Networks Table
+
+#### Create `networks` table:
+```sql
+CREATE TABLE networks (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+```
+
+`name` is `UNIQUE` because it's the app's upsert key: on every startup, the app looks up (or creates)
+a row by network name, and reuses its `id` for the lifetime of that process.
+
+#### Grant access to app user:
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON TABLE networks
+TO photoapp_user;
+
+GRANT USAGE, SELECT, UPDATE 
+ON SEQUENCE networks_id_seq 
+TO photoapp_user;
+```
+
 ### Predictions Table
 
 #### Create `predictions` table:
@@ -61,18 +82,21 @@ TO photoapp_user;
 CREATE TABLE predictions (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     photo_id INT REFERENCES photos(id) ON DELETE SET NULL,
+    network_id INT REFERENCES networks(id) ON DELETE SET NULL,
     original_filename TEXT NOT NULL,
     predicted_label TEXT NOT NULL,
     confidence REAL NOT NULL,
-    accepted BOOLEAN NOT NULL,
     uploader_ip TEXT NOT NULL,
     predicted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
-`photo_id` is nullable because rejected uploads (predicted label != "dog") are never saved to 
-the `photos` table, but the prediction is still logged for model evaluation. `ON DELETE SET NULL` 
+The `photo_id` field is nullable because rejected uploads (predicted label != "dog") are never saved to 
+the `photos` table, but the prediction is still logged for model monitoring. `ON DELETE SET NULL` 
 keeps prediction history intact if a photo is later removed.
+
+The `network_id` field is nullable for the same reason: `ON DELETE SET NULL` keeps prediction
+history intact if a network row is later removed.
 
 #### Grant access to app user:
 ```sql

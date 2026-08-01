@@ -11,12 +11,13 @@ from src.config import (
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES,
     NAME,
+    NETWORK_NAME,
     UPLOAD_FOLDER,
     templates,
 )
-from src.db import pool, write_prediction
+from src.db import pool, upsert_network, write_prediction
 from src.logger import listener, logger
-from src.model import inference
+from src.model import inference, load_model
 from src.utils import save_photo
 
 
@@ -26,13 +27,19 @@ async def lifespan(app: FastAPI):
 
     app.state.shutting_down = False
     listener.start()
+    wd = os.getcwd()
+    model_path = f"{wd}/models/efficientnet-b0-dog-classifier"
+    logger.info("Loading classifier...")
+    app.state.processor, app.state.model = load_model(model_path)
+    logger.info("Setting up database connection pool...")
     pool.open()
+    app.state.network_id = upsert_network(NETWORK_NAME)
+    logger.info(f"App launched on Wi-Fi network '{NETWORK_NAME}'")
 
     yield
 
     app.state.shutting_down = True
     pool.close()
-
     logger.info("Shutdown complete.")
     listener.stop()
 
@@ -40,16 +47,22 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-async def _process_upload(file: UploadFile, uploader_ip: str) -> bool:
+async def _process_upload(
+    request: Request, file: UploadFile, uploader_ip: str, network_id: int | None
+) -> bool:
     """
     Validate, classify, and save a single uploaded photo. Returns True on success.
 
     Parameters
     ----------
+    request : Request
+        API request containing the app state.
     file : UploadFile
         File to upload.
     uploader_ip : str
         LAN IP address of the uploading device.
+    network_id : int | None
+        'id' of the network the upload was received on.
 
     Returns
     -------
@@ -77,6 +90,8 @@ async def _process_upload(file: UploadFile, uploader_ip: str) -> bool:
         # check for dawgs
         predicted_label, confidence = await run_in_threadpool(
             inference,
+            request.app.state.processor,
+            request.app.state.model,
             contents,
         )
 
@@ -87,10 +102,10 @@ async def _process_upload(file: UploadFile, uploader_ip: str) -> bool:
             await run_in_threadpool(
                 write_prediction,
                 None,
+                network_id,
                 filename,
                 predicted_label,
                 confidence,
-                False,
                 uploader_ip,
             )
             return False
@@ -101,15 +116,14 @@ async def _process_upload(file: UploadFile, uploader_ip: str) -> bool:
             contents,
             unique_filename,
             content_type,
-            uploader_ip,
         )
         await run_in_threadpool(
             write_prediction,
             photo_id,
+            network_id,
             filename,
             predicted_label,
             confidence,
-            True,
             uploader_ip,
         )
         return True
@@ -154,7 +168,10 @@ async def upload_photos(
     logger.info("Uploading files...")
 
     results = await asyncio.gather(
-        *(_process_upload(file, uploader_ip) for file in files)
+        *(
+            _process_upload(request, file, uploader_ip, request.app.state.network_id)
+            for file in files
+        )
     )
 
     success_count = sum(results)

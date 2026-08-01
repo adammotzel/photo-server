@@ -10,7 +10,6 @@ def save_photo(
     contents: bytes,
     stored_filename: str,
     content_type: str | None,
-    uploader_ip: str,
 ) -> int:
     """
     Write photo to disk and photo metadata to Postgres.
@@ -37,8 +36,6 @@ def save_photo(
         File name to store in the db.
     content_type : str | None
         File content type. Optional.
-    uploader_ip : str
-        LAN IP address of the uploading device.
 
     Returns
     -------
@@ -74,7 +71,6 @@ def save_photo(
         return write_photo_metadata(
             stored_filename=stored_filename,
             content_type=content_type,
-            uploader_ip=uploader_ip,
         )
 
     except Exception:

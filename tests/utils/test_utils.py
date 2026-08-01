@@ -10,7 +10,7 @@ STORED_FILENAME = "photo.jpg"
 CONTENT_TYPE = "image/jpeg"
 
 
-def test_save_photo_writes_file_and_returns_id(tmp_path, monkeypatch, IP):
+def test_save_photo_writes_file_and_returns_id(tmp_path, monkeypatch):
     """
     Verify `save_photo` writes the file to disk and returns the id from
     the (mocked) metadata insert.
@@ -22,8 +22,6 @@ def test_save_photo_writes_file_and_returns_id(tmp_path, monkeypatch, IP):
     monkeypatch : _pytest.monkeypatch.MonkeyPatch
         Built-in pytest fixture used to replace `src.utils.write_photo_metadata`
         with a mock.
-    IP : str
-        IP fixture (see root conftest.py), used as the uploader IP.
     """
     mock_write = MagicMock(return_value=42)
     monkeypatch.setattr("src.utils.write_photo_metadata", mock_write)
@@ -35,14 +33,13 @@ def test_save_photo_writes_file_and_returns_id(tmp_path, monkeypatch, IP):
         contents=CONTENTS,
         stored_filename=STORED_FILENAME,
         content_type=CONTENT_TYPE,
-        uploader_ip=IP,
     )
 
     assert photo_id == 42
     assert file_location.read_bytes() == CONTENTS
 
 
-def test_save_photo_passes_correct_metadata_to_db(tmp_path, monkeypatch, IP):
+def test_save_photo_passes_correct_metadata_to_db(tmp_path, monkeypatch):
     """
     Verify `save_photo` forwards the correct metadata to
     `write_photo_metadata`.
@@ -54,8 +51,6 @@ def test_save_photo_passes_correct_metadata_to_db(tmp_path, monkeypatch, IP):
     monkeypatch : _pytest.monkeypatch.MonkeyPatch
         Built-in pytest fixture used to replace `src.utils.write_photo_metadata`
         with a mock.
-    IP : str
-        IP fixture (see root conftest.py), used as the uploader IP.
     """
     mock_write = MagicMock(return_value=1)
     monkeypatch.setattr("src.utils.write_photo_metadata", mock_write)
@@ -67,17 +62,15 @@ def test_save_photo_passes_correct_metadata_to_db(tmp_path, monkeypatch, IP):
         contents=CONTENTS,
         stored_filename=STORED_FILENAME,
         content_type=CONTENT_TYPE,
-        uploader_ip=IP,
     )
 
     mock_write.assert_called_once_with(
         stored_filename=STORED_FILENAME,
         content_type=CONTENT_TYPE,
-        uploader_ip=IP,
     )
 
 
-def test_save_photo_cleans_up_on_db_failure(tmp_path, monkeypatch, IP):
+def test_save_photo_cleans_up_on_db_failure(tmp_path, monkeypatch):
     """
     Verify `save_photo` deletes the file it wrote if the metadata insert
     fails, instead of leaving an orphaned file on disk.
@@ -89,8 +82,6 @@ def test_save_photo_cleans_up_on_db_failure(tmp_path, monkeypatch, IP):
     monkeypatch : _pytest.monkeypatch.MonkeyPatch
         Built-in pytest fixture used to replace `src.utils.write_photo_metadata`
         with a mock that raises.
-    IP : str
-        IP fixture (see root conftest.py), used as the uploader IP.
     """
     mock_write = MagicMock(side_effect=RuntimeError("db insert failed"))
     monkeypatch.setattr("src.utils.write_photo_metadata", mock_write)
@@ -103,7 +94,6 @@ def test_save_photo_cleans_up_on_db_failure(tmp_path, monkeypatch, IP):
             contents=CONTENTS,
             stored_filename=STORED_FILENAME,
             content_type=CONTENT_TYPE,
-            uploader_ip=IP,
         )
 
     assert os.listdir(tmp_path) == []
