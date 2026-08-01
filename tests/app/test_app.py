@@ -22,13 +22,13 @@ def _fetch_prediction(original_filename: str):
     Returns
     -------
     tuple | None
-        `(photo_id, predicted_label, accepted)` for the matching row, or
-        `None` if no row was found.
+        `(photo_id, predicted_label)` for the matching row, or `None` if no
+        row was found.
     """
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT photo_id, predicted_label, accepted "
+                "SELECT photo_id, predicted_label "
                 "FROM predictions WHERE original_filename = %s",
                 (original_filename,),
             )
@@ -125,9 +125,8 @@ def test_upload_accepted_dog_photo(
 
     row = _fetch_prediction(original_filename)
     assert row is not None
-    photo_id, predicted_label, accepted = row
+    photo_id, predicted_label = row
     assert predicted_label == "dog"
-    assert accepted is True
     assert photo_id is not None
 
     stored_filename = _fetch_photo_stored_filename(photo_id)
@@ -173,9 +172,8 @@ def test_upload_rejects_non_dog_photo(
 
     row = _fetch_prediction(original_filename)
     assert row is not None
-    photo_id, predicted_label, accepted = row
+    photo_id, predicted_label = row
     assert predicted_label == "cat"
-    assert accepted is False
     assert photo_id is None
 
     assert list(upload_dir.iterdir()) == []

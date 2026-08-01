@@ -1,6 +1,8 @@
 # App Testing
 
-## Test Setup
+App testing setup documentation.
+
+## Setup
 
 Create a test database:
 
@@ -30,15 +32,27 @@ TO photoapp_user;
 GRANT USAGE, SELECT, UPDATE 
 ON SEQUENCE predictions_id_seq 
 TO photoapp_user;
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON TABLE networks
+TO photoapp_user;
+
+GRANT USAGE, SELECT, UPDATE 
+ON SEQUENCE networks_id_seq 
+TO photoapp_user;
 ```
+
+The `networks` grant is required even though tests don't exercise it directly: the app's
+`lifespan()` calls `upsert_network()` on startup, and the `client` fixture in
+`tests/app/conftest.py` boots the real app, so every test run touches this table.
 
 ## Unit Testing
 
 Unit tests use [pytest](https://docs.pytest.org/), with coverage reported by
 `pytest-cov`. Both are configured in `pyproject.toml`: `testpaths` points at
-`tests/`, `tests/load_tests` is excluded see [Load Testing](#load-testing), 
-and `addopts` enables a `--cov=src --cov-report=term-missing` report on every 
-run. Running `pytest` from project root picks all of this up automatically.
+`tests/`, load tests are excluded (see [Load Testing](#load-testing)), and 
+`addopts` enables a coverage report on every run. Running `pytest` from project 
+root picks all of this up automatically.
 
 ### Directory Structure
 
@@ -92,12 +106,11 @@ each test having to request it by name.
 
 ### Cleanup
 
-I recommend periodically cleaning up the test database because some of the tests 
-actually perform write operations.
+Periodic cleanup of the test database is necessary because some tests write to the database. Clearing records or reseting the entire db are both valid options.
 
 ## Load Testing
 
-Load tests are defined in [tests/load_tests](../tests/load_tests/). 
+Load tests are defined in [tests/load_tests](../../tests/load_tests/). 
 
 ### Run Load Tests
 
@@ -111,6 +124,6 @@ Run the tests:
 bash scripts/tests/run_load_tests.sh
 ```
 
-Run the app and load tests on separate servers/devices. You *can* run both on the same device, but results will be skewed because they'll be competing for the same CPU, memory, etc.
+The app and load tests are run on separate servers/devices.
 
-Follow [Locust's documentation](https://docs.locust.io/en/stable/quickstart.html) if you want to create more load tests.
+Follow [Locust's documentation](https://docs.locust.io/en/stable/quickstart.html) to create more load tests.

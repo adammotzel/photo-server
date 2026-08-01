@@ -3,7 +3,7 @@ import uuid
 import psycopg
 import pytest
 
-from src.db import write_photo_metadata, write_prediction
+from src.db import upsert_network, write_photo_metadata, write_prediction
 
 pytestmark = pytest.mark.usefixtures("db_pool")
 
@@ -22,47 +22,34 @@ def _unique_filename() -> str:
     return f"{uuid.uuid4()}.jpg"
 
 
-def test_write_photo_metadata_returns_int_id(IP):
+def test_write_photo_metadata_returns_int_id():
     """
     Verify inserting a `photos` row returns its integer primary key.
-
-    Parameters
-    ----------
-    IP : str
-        IP fixture, used as the uploader IP.
     """
     photo_id = write_photo_metadata(
         stored_filename=_unique_filename(),
         content_type=CONTENT_TYPE,
-        uploader_ip=IP,
     )
 
     assert isinstance(photo_id, int)
 
 
-def test_write_photo_metadata_duplicate_filename_raises(IP):
+def test_write_photo_metadata_duplicate_filename_raises():
     """
     Verify inserting a second `photos` row with a filename that already
     exists raises a unique-constraint violation.
-
-    Parameters
-    ----------
-    IP : str
-        IP fixture, used as the uploader IP.
     """
     stored_filename = _unique_filename()
 
     write_photo_metadata(
         stored_filename=stored_filename,
         content_type=CONTENT_TYPE,
-        uploader_ip=IP,
     )
 
     with pytest.raises(psycopg.errors.UniqueViolation):
         write_photo_metadata(
             stored_filename=stored_filename,
             content_type=CONTENT_TYPE,
-            uploader_ip=IP,
         )
 
 
@@ -78,15 +65,14 @@ def test_write_prediction_with_valid_photo_id(IP):
     photo_id = write_photo_metadata(
         stored_filename=_unique_filename(),
         content_type=CONTENT_TYPE,
-        uploader_ip=IP,
     )
 
     write_prediction(
         photo_id=photo_id,
+        network_id=None,
         original_filename="original.jpg",
         predicted_label="dog",
         confidence=0.98,
-        accepted=True,
         uploader_ip=IP,
     )
 
@@ -103,9 +89,22 @@ def test_write_prediction_with_null_photo_id(IP):
     """
     write_prediction(
         photo_id=None,
+        network_id=None,
         original_filename="original.jpg",
         predicted_label="cat",
         confidence=0.42,
-        accepted=False,
         uploader_ip=IP,
     )
+
+
+def test_upsert_network_is_idempotent():
+    """
+    Verify calling `upsert_network` twice with the same name returns the
+    same id both times, rather than creating a duplicate row.
+    """
+    name = f"test-network-{uuid.uuid4()}"
+
+    first_id = upsert_network(name)
+    second_id = upsert_network(name)
+
+    assert first_id == second_id

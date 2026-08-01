@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 # valid creds
 load_dotenv(Path(__file__).resolve().parent / ".env")
 NAME = os.getenv("NAME", "My Dog")
+NETWORK_NAME = os.environ["NETWORK_NAME"]
 POSTGRES_APP_PW = os.environ["POSTGRES_PW"]
 
 # DB config
