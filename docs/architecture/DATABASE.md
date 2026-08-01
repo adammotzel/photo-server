@@ -6,9 +6,9 @@ Postgres stores metadata only; the photos themselves live on disk (see [UPLOAD](
 
 | Table | Description |
 |---|---|
-| `photos` | One row per accepted photo upload. Holds the on-disk filename and the uploading device's LAN IP. |
-| `predictions` | One row per upload attempt, accepted or rejected. Logs the classifier's prediction and confidence for every image sent to the app, which lets me monitor the classifier's behavior over time, not just the uploads it let through. |
-| `networks` | Lookup table of Wi-Fi networks the app has been deployed on. Upserted once per process at startup (from `NETWORK_NAME`) and referenced by `predictions` to attribute each prediction to the network it came in on. |
+| `photos` | One row per accepted photo upload. Holds the on-disk filename |
+| `predictions` | One row per upload attempt, accepted or rejected. Logs the classifier's prediction and confidence for every image sent to the app, which lets me monitor the classifier's behavior over time, not just the uploads it let through. Also stores the uploader's LAN IP and the active Wi-Fi network name |
+| `networks` | Lookup table of Wi-Fi networks the app has been deployed on. Upserted once per process at startup (from `NETWORK_NAME`) and referenced by `predictions` to attribute each prediction to the network it came in on |
 
 ## Schemas
 
@@ -27,7 +27,7 @@ Postgres stores metadata only; the photos themselves live on disk (see [UPLOAD](
 |---|---|---|---|
 | `id` | INT (identity) | No | Primary key, auto-generated |
 | `photo_id` | INT | Yes | References `photos(id)`, `ON DELETE SET NULL`. Null when the upload was rejected, since rejected images are never saved to `photos`; `ON DELETE SET NULL` keeps prediction history intact if a photo is later removed |
-| `network_id` | INT | Yes | References `networks(id)`, `ON DELETE SET NULL`. Set once per process at startup from `NETWORK_NAME`; null on rows predating this column since their network can't be recovered |
+| `network_id` | INT | Yes | References `networks(id)`, `ON DELETE SET NULL`. Set once per process at startup from `NETWORK_NAME` |
 | `original_filename` | TEXT | No | Filename as uploaded, before it's renamed for storage |
 | `predicted_label` | TEXT | No | Label the classifier assigned to the image |
 | `confidence` | REAL | No | Classifier's confidence score for the predicted label |

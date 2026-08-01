@@ -11,7 +11,7 @@ pool = ConnectionPool(
         f"port={DB_PORT}"
     ),
     min_size=2,
-    max_size=10,  # can be changed
+    max_size=10,
     timeout=30,
     open=False,
 )

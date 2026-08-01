@@ -14,6 +14,6 @@ I store these in a `.env` file (in `src`).
 
 The app launches on host `0.0.0.0` and port `8000` by default.
 
-I serve the app to other devices connected to my home (or another trusted) Wi-Fi network. This requires allowing inbound traffic on the port for private networks (configured in my machine's firewall settings).
+I serve the app to other devices connected to trusted Wi-Fi networks. This requires allowing inbound traffic on the port for private networks (configured in my machine's firewall settings).
 
 Other in-network devices access the app at `<local IP address>:<port>`.

@@ -1,6 +1,6 @@
 # Classifier
 
-The classifier's job is to gate uploads: only images predicted as `"dog"` are saved. It's a fine-tuned `efficientnet-b0` model, loaded once at import time in `src/model.py` from `models/efficientnet-b0-dog-classifier`.
+The classifier's job is to gate uploads: only images predicted as `"dog"` are saved. It's a fine-tuned `efficientnet-b0` model, loaded once during app startup from `models/efficientnet-b0-dog-classifier`.
 
 ## Model
 

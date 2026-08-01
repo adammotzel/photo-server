@@ -106,7 +106,7 @@ each test having to request it by name.
 
 ### Cleanup
 
-Periodic cleanup of the test database is necessary because some tests write data to the database. Clearing records or reseting the entire db are both valid options.
+Periodic cleanup of the test database is necessary because some tests write to the database. Clearing records or reseting the entire db are both valid options.
 
 ## Load Testing
 
