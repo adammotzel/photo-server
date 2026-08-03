@@ -13,6 +13,17 @@ A quick side project to serve photos of my dog on a web app to anyone connected 
 - Ability for users to view all uploaded photos in a "gallery"
 - An image verification layer (using the `efficientnet-b0` vision model)
 
+## Software + Tools
+
+Language:
+- Python 3.12+
+
+Dependency Management:
+- `uv` + `pyproject.toml`
+
+Backend Services:
+- PostgreSQL
+
 ## Architecture Decisions
 
 ### FastAPI Backend
