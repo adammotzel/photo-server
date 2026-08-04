@@ -191,3 +191,7 @@ efficientnet-b0-dog-classifier/
 *.png
 *.gif
 *.webp
+
+# TLS certs
+certs/
+*.pem

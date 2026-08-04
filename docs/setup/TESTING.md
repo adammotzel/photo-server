@@ -4,42 +4,70 @@ App testing setup documentation.
 
 ## Setup
 
-Create a test database:
+Create a test database and build its schema from scratch:
 
 ```sql
-CREATE DATABASE photoapp_test WITH TEMPLATE photoapp;
+CREATE DATABASE photoapp_test;
+\c photoapp_test
+
+CREATE TABLE photos (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
+    stored_filename TEXT NOT NULL UNIQUE, 
+    content_type TEXT, 
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE networks (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE predictions (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    photo_id INT REFERENCES photos(id) ON DELETE SET NULL,
+    network_id INT REFERENCES networks(id) ON DELETE SET NULL,
+    original_filename TEXT NOT NULL,
+    predicted_label TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    uploader_ip TEXT NOT NULL,
+    predicted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 ```
 
-This will create a copy of the true app database, including all data.
-
-Switch to the new database and grant access to the app user:
+Create a test user:
 
 ```sql
-GRANT CONNECT ON DATABASE photoapp_test TO photoapp_user;
+CREATE USER photoapp_user_test WITH PASSWORD 'secret-goes-here';
+```
+
+Still connected to `photoapp_test`, grant access to the app user:
+
+```sql
+GRANT CONNECT ON DATABASE photoapp_test TO photoapp_user_test;
 
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON TABLE photos
-TO photoapp_user;
+TO photoapp_user_test;
 
 GRANT USAGE, SELECT, UPDATE 
 ON SEQUENCE photos_id_seq 
-TO photoapp_user;
+TO photoapp_user_test;
 
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON TABLE predictions
-TO photoapp_user;
+TO photoapp_user_test;
 
 GRANT USAGE, SELECT, UPDATE 
 ON SEQUENCE predictions_id_seq 
-TO photoapp_user;
+TO photoapp_user_test;
 
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON TABLE networks
-TO photoapp_user;
+TO photoapp_user_test;
 
 GRANT USAGE, SELECT, UPDATE 
 ON SEQUENCE networks_id_seq 
-TO photoapp_user;
+TO photoapp_user_test;
 ```
 
 The `networks` grant is required even though tests don't exercise it directly: the app's
@@ -76,7 +104,7 @@ Fixtures are split by scope:
   `sample_image_bytes` (a real image loaded once per session), `IP` (a
   constant local IP address), and `db_pool` (opens the real
   `psycopg_pool.ConnectionPool` from `src.db` once for the whole session and
-  closes it at the end). It also sets `ENVIRONMENT=test` before any `src.*`
+  closes it at the end). It also sets `TEST_ENV` before any `src.*`
   module is imported, since `src/config.py` resolves the database name from
   that variable at import time.
 - **`tests/app/conftest.py`** holds fixtures specific to the app suite: a
