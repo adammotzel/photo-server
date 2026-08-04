@@ -8,16 +8,18 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 NAME = os.environ["NAME"]
 NETWORK_NAME = os.environ["NETWORK_NAME"]
-POSTGRES_APP_PW = os.environ["POSTGRES_PW"]
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = os.environ["DB_PORT"]
-DB_USER = os.environ["DB_USER"]
 
 # check for test environment
 if os.getenv("TEST_ENV"):
     DB_NAME = os.environ["TEST_DB_NAME"]
+    POSTGRES_APP_PW = os.environ["TEST_POSTGRES_PW"]
+    DB_USER = os.environ["TEST_DB_USER"]
 else:
     DB_NAME = os.environ["DB_NAME"]
+    POSTGRES_APP_PW = os.environ["POSTGRES_PW"]
+    DB_USER = os.environ["DB_USER"]
 
 UPLOAD_FOLDER = "src/photos"
 ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp")

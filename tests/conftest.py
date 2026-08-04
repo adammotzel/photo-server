@@ -2,7 +2,7 @@ import os
 
 # must be set before any `src.*` module is imported anywhere during collection,
 # since src/config.py resolves DB_NAME from this at import time
-os.environ["ENVIRONMENT"] = "test"
+os.environ["TEST_ENV"] = "yup"
 
 from pathlib import Path
 
