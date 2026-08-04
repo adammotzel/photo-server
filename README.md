@@ -1,14 +1,10 @@
 # Photo Server
 
-A quick side project to serve photos of my dog on a web app to anyone connected to my home Wi-Fi. The app uses:
-
-- `fastapi` for serving the app.
-- `html` for some vanilla webpages.
-- PostgreSQL as the backend database.
+A quick side project to serve photos of my dog on a web app to anyone connected to my home Wi-Fi.
 
 ## App Features
 
-- Open access on trusted Wi-Fi networks, no accounts or login required
+- Open access on trusted Wi-Fi networks (e.g., my home Wi-Fi), no accounts or login required
 - Ability for users to upload new photos, automatically attributed to the uploading device's LAN IP address (for tracking photo metadata)
 - Ability for users to view all uploaded photos in a "gallery"
 - An image verification layer (using the `efficientnet-b0` vision model)
@@ -23,6 +19,9 @@ Dependency Management:
 
 Backend Services:
 - PostgreSQL
+
+Security:
+- OpenSSL (self-signed TLS certs)
 
 ## Architecture Decisions
 
@@ -45,6 +44,10 @@ I chose to use `psycopg` for database interactions. It's lighter and faster than
 ### Image Verification Layer
 
 Google's `efficientnet-b0` vision model offers solid accuracy and low resource consumption. It works great for a small app served on CPU.
+
+### Security
+
+This app is only served on trusted Wi-Fi (LAN), never exposed to the internet, so there are no accounts, login, or auth layer. Traffic is still encrypted over HTTPS using a self-signed cert, so it isn't sent in plaintext to other devices on the network; in-network devices see a one-time browser warning since the cert isn't from a trusted CA. See [docs/setup/CONFIG.md](docs/setup/CONFIG.md) for cert setup.
 
 ## Documentation
 

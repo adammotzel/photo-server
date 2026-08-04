@@ -9,5 +9,8 @@ uvicorn.run(
     reload=False,
     log_config=None,
     access_log=False,
+    ssl_certfile=os.getenv("SSL_CERTFILE"),
+    ssl_keyfile=os.getenv("SSL_KEYFILE"),
+    timeout_graceful_shutdown=10,
 )
     
