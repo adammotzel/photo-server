@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.config import NAME
+from src.constants import NAME
 from src.db import pool
 
 pytestmark = pytest.mark.usefixtures("db_pool")

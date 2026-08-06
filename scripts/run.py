@@ -1,16 +1,18 @@
 import os
 
 import uvicorn
+from dotenv import load_dotenv
+
+load_dotenv(f"{os.getcwd()}/.env")
 
 uvicorn.run(
     "src.app:app", 
-    host=os.getenv("SERVER_IP", "0.0.0.0"), 
-    port=os.getenv("SERVER_PORT", 8000), 
+    host=os.environ["SERVER_IP"], 
+    port=int(os.environ["SERVER_PORT"]), 
     reload=False,
     log_config=None,
     access_log=False,
-    ssl_certfile=os.getenv("SSL_CERTFILE"),
-    ssl_keyfile=os.getenv("SSL_KEYFILE"),
+    ssl_certfile=os.environ["SSL_CERTFILE"],
+    ssl_keyfile=os.environ["SSL_KEYFILE"],
     timeout_graceful_shutdown=10,
 )
-    

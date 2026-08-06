@@ -9,7 +9,7 @@ App database setup documentation. All steps completed using my Postgres admin us
 CREATE USER photoapp_user WITH PASSWORD 'secret-goes-here';
 ```
 
-The secret is stored in the `src/.env` file with the name `POSTGRES_PW`.
+The secret is stored in the `.env` file with the name `DB_PASSWORD`.
 
 #### Create new db:
 ```sql

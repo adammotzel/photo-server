@@ -104,9 +104,10 @@ Fixtures are split by scope:
   `sample_image_bytes` (a real image loaded once per session), `IP` (a
   constant local IP address), and `db_pool` (opens the real
   `psycopg_pool.ConnectionPool` from `src.db` once for the whole session and
-  closes it at the end). It also sets `TEST_ENV` before any `src.*`
-  module is imported, since `src/config.py` resolves the database name from
-  that variable at import time.
+  closes it at the end). It also loads `.env`, then loads `.env.test` on top
+  with `override=True` (so `DB_NAME` / `DB_USER` / `DB_PASSWORD` resolve to
+  the test database) before any `src.*` module is imported, since
+  `src/constants.py` builds `Config()` at import time.
 - **`tests/app/conftest.py`** holds fixtures specific to the app suite: a
   `client` fixture wrapping `TestClient` around the real FastAPI app (with
   the app's own pool open/close calls patched to no-ops, since `db_pool`
@@ -146,6 +147,10 @@ Start the app:
 ```bash
 bash scripts/tests/run_test_app.sh
 ```
+
+This sources `.env.test` before `scripts/run.py` loads `.env`, so `DB_NAME` /
+`DB_USER` / `DB_PASSWORD` resolve to the test database (same `.env.test` file
+used by the unit tests, see [CONFIG.md](CONFIG.md)) instead of production.
 
 Run the tests:
 ```bash

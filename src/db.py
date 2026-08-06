@@ -1,12 +1,12 @@
 from psycopg_pool import ConnectionPool
 
-from src.config import DB_HOST, DB_NAME, DB_PORT, DB_USER, POSTGRES_APP_PW
+from src.constants import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 
 pool = ConnectionPool(
     conninfo=(
         f"dbname={DB_NAME} "
         f"user={DB_USER} "
-        f"password={POSTGRES_APP_PW} "
+        f"password={DB_PASSWORD.get_secret_value()} "
         f"host={DB_HOST} "
         f"port={DB_PORT}"
     ),
