@@ -1,14 +1,21 @@
 import os
-
-# must be set before any `src.*` module is imported anywhere during collection,
-# since src/config.py resolves DB_NAME from this at import time
-os.environ["TEST_ENV"] = "yup"
-
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+# must run before any `src.*` module is imported anywhere during collection,
+# since src/constants.py builds Config() (and src/db.py its pool) at import time
+_ROOT_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(_ROOT_DIR / ".env")
+load_dotenv(_ROOT_DIR / ".env.test", override=True)
 
 import pytest
 
-IMG_DIR = Path(__file__).resolve().parent.parent / "data" / "training"
+IMG_DIR = _ROOT_DIR / "data" / "training"
+
+# last line of defense!
+if "test" not in os.environ["DB_NAME"].lower():
+    raise RuntimeError("Tests must be executed using the test database.")
 
 
 @pytest.fixture(scope="session")

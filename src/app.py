@@ -7,9 +7,10 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
-from src.config import (
+from src.constants import (
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES,
+    MODEL_PATH,
     NAME,
     NETWORK_NAME,
     UPLOAD_FOLDER,
@@ -27,10 +28,8 @@ async def lifespan(app: FastAPI):
 
     app.state.shutting_down = False
     listener.start()
-    wd = os.getcwd()
-    model_path = f"{wd}/models/efficientnet-b0-dog-classifier"
     logger.info("Loading classifier...")
-    app.state.processor, app.state.model = load_model(model_path)
+    app.state.processor, app.state.model = load_model(MODEL_PATH)
     logger.info("Setting up database connection pool...")
     pool.open()
     app.state.network_id = upsert_network(NETWORK_NAME)
