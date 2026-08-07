@@ -16,6 +16,8 @@ UPLOAD_FOLDER = "src/photos"
 ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 ALLOWED_MIME_TYPES = ("image/jpeg", "image/png", "image/gif", "image/webp")
 
+PHOTOS_PAGE_SIZE = 24
+
 MODEL_PATH = "models/efficientnet-b0-dog-classifier"
 
 templates = Jinja2Templates(directory="src/templates")
