@@ -13,10 +13,17 @@ from src.constants import (
     MODEL_PATH,
     NAME,
     NETWORK_NAME,
+    PHOTOS_PAGE_SIZE,
     UPLOAD_FOLDER,
     templates,
 )
-from src.db import pool, upsert_network, write_prediction
+from src.db import (
+    get_photo_count,
+    get_photos,
+    pool,
+    upsert_network,
+    write_prediction,
+)
 from src.logger import listener, logger
 from src.model import inference, load_model
 from src.utils import save_photo
@@ -211,26 +218,35 @@ async def upload_photos(
 
 
 @app.get("/photos", response_class=HTMLResponse)
-async def view_photos(request: Request):
-    """Photo gallery page."""
+async def view_photos(request: Request, page: int = 1):
+    """Photo gallery page, paginated newest-upload-first."""
 
-    logger.info("Request received to view photo gallery.")
-
-    manifest = await run_in_threadpool(
-        os.listdir,
-        UPLOAD_FOLDER,
-    )
-    manifest = [
-        file
-        for file in manifest
-        if isinstance(file, str) and file.lower().endswith(ALLOWED_EXTENSIONS)
-    ]
-
-    logger.info(f"Surfacing {len(manifest)} photos for the gallery...")
+    logger.info(f"Request received to view photo gallery (page {page}).")
 
     try:
+        total_photos = await run_in_threadpool(get_photo_count)
+        total_pages = max(-(-total_photos // PHOTOS_PAGE_SIZE), 1)
 
-        return templates.TemplateResponse(request, "gallery.html", {"photos": manifest})
+        page = min(max(page, 1), total_pages)
+        offset = (page - 1) * PHOTOS_PAGE_SIZE
+
+        photos = await run_in_threadpool(get_photos, PHOTOS_PAGE_SIZE, offset)
+
+        logger.info(
+            f"Surfacing {len(photos)} photos for the gallery (page {page}/{total_pages})."
+        )
+
+        return templates.TemplateResponse(
+            request,
+            "gallery.html",
+            {
+                "photos": photos,
+                "page": page,
+                "total_pages": total_pages,
+                "has_prev": page > 1,
+                "has_next": page < total_pages,
+            },
+        )
 
     except Exception:
         logger.error("Failed to fetch photos.", exc_info=True)

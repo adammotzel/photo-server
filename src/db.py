@@ -60,6 +60,56 @@ def write_photo_metadata(
             return row[0]
 
 
+def get_photo_count() -> int:
+    """
+    Count the total number of records in the 'photos' table.
+
+    Returns
+    -------
+    int
+        Total number of saved photos.
+    """
+
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM photos")
+            row = cur.fetchone()
+            return row[0] if row else 0
+
+
+def get_photos(limit: int, offset: int) -> list[str]:
+    """
+    Fetch a page of stored filenames from the 'photos' table, newest upload
+    first.
+
+    Parameters
+    ----------
+    limit : int
+        Maximum number of filenames to return.
+    offset : int
+        Number of newest-first rows to skip before collecting results.
+
+    Returns
+    -------
+    list[str]
+        Stored filenames for the requested page, ordered by 'uploaded_at'
+        descending ('id' descending breaks ties from same-timestamp uploads).
+    """
+
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT stored_filename
+                FROM photos
+                ORDER BY uploaded_at DESC, id DESC
+                LIMIT %s OFFSET %s
+                """,
+                (limit, offset),
+            )
+            return [row[0] for row in cur.fetchall()]
+
+
 def upsert_network(name: str) -> int:
     """
     Insert 'name' into the 'networks' table if it doesn't already exist, and

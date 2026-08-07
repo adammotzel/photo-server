@@ -34,6 +34,43 @@
         .gallery img:hover {
             transform: scale(1.05);
         }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .pagination a {
+            padding: 10px 20px;
+            font-size: 1rem;
+            text-decoration: none;
+            color: #fff;
+            background-color: #007bff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: background-color 0.2s ease;
+        }
+
+        .pagination a:hover {
+            background-color: #0056b3;
+        }
+
+        .pagination .disabled {
+            padding: 10px 20px;
+            font-size: 1rem;
+            color: #aaa;
+            background-color: #e9e9e9;
+            border-radius: 8px;
+            cursor: default;
+        }
+
+        .pagination .page-info {
+            font-size: 1rem;
+            color: #555;
+        }
     </style>
     <a href="/" class="home-button">🏠 Home</a>
 </head>
@@ -46,5 +83,23 @@
             <p>No photos have been uploaded.</p>
         {% endfor %}
     </div>
+
+    {% if photos and total_pages and total_pages > 1 %}
+        <div class="pagination">
+            {% if has_prev %}
+                <a href="/photos?page={{ page - 1 }}">&laquo; Newer</a>
+            {% else %}
+                <span class="disabled">&laquo; Newer</span>
+            {% endif %}
+
+            <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+
+            {% if has_next %}
+                <a href="/photos?page={{ page + 1 }}">Older &raquo;</a>
+            {% else %}
+                <span class="disabled">Older &raquo;</span>
+            {% endif %}
+        </div>
+    {% endif %}
 </body>
 </html>

@@ -7,7 +7,7 @@ All routes are defined in `src/app.py`. Pages are server-rendered with Jinja2; t
 | `GET` | `/` | Home page |
 | `GET` | `/upload` | Upload form page |
 | `POST` | `/upload` | Accepts one or more multipart files, runs them through the upload pipeline (see [UPLOAD](UPLOAD.md)), and re-renders the upload page with a success/partial/failure message |
-| `GET` | `/photos` | Gallery page, lists every photo currently in `src/photos/` |
+| `GET` | `/photos` | Gallery page, paginated (`?page=`), newest upload first |
 | `GET` | `/photos/{filename}` | Serves a single photo file, with a 1-year immutable cache header |
 
 ## Startup and Shutdown

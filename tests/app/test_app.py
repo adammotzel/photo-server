@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.constants import NAME
-from src.db import pool
+from src.db import pool, write_photo_metadata
 
 pytestmark = pytest.mark.usefixtures("db_pool")
 
@@ -274,26 +274,64 @@ def test_upload_rejected_when_shutting_down(
     assert list(upload_dir.iterdir()) == []
 
 
-def test_view_photos_lists_only_allowed_extensions(client, monkeypatch):
+def test_view_photos_orders_newest_first(client):
     """
-    Verify the gallery page lists only files with allowed extensions.
+    Verify the gallery page lists photos newest-upload-first.
+
+    Parameters
+    ----------
+    client : fastapi.testclient.TestClient
+        Test client fixture for hitting the real app routes.
+    """
+    older = write_photo_metadata(
+        stored_filename=f"{uuid.uuid4()}.jpg", content_type="image/jpeg"
+    )
+    newer = write_photo_metadata(
+        stored_filename=f"{uuid.uuid4()}.jpg", content_type="image/jpeg"
+    )
+    older_filename = _fetch_photo_stored_filename(older)
+    newer_filename = _fetch_photo_stored_filename(newer)
+
+    response = client.get("/photos")
+
+    assert response.status_code == 200
+    assert response.text.index(newer_filename) < response.text.index(older_filename)
+
+
+def test_view_photos_pagination(client, monkeypatch):
+    """
+    Verify photos are split across pages once a page fills up, with the
+    overflow landing on the next page.
 
     Parameters
     ----------
     client : fastapi.testclient.TestClient
         Test client fixture for hitting the real app routes.
     monkeypatch : _pytest.monkeypatch.MonkeyPatch
-        Built-in pytest fixture used to stub `os.listdir` with a fixed
-        directory manifest.
+        Built-in pytest fixture used to shrink `src.app.PHOTOS_PAGE_SIZE` so
+        the test doesn't depend on how many photos already exist in the db.
     """
-    monkeypatch.setattr("os.listdir", lambda _: ["a.jpg", "b.txt", "c.png"])
+    monkeypatch.setattr("src.app.PHOTOS_PAGE_SIZE", 2)
 
-    response = client.get("/photos")
+    ids = [
+        write_photo_metadata(
+            stored_filename=f"{uuid.uuid4()}.jpg", content_type="image/jpeg"
+        )
+        for _ in range(3)
+    ]
+    filenames = [_fetch_photo_stored_filename(photo_id) for photo_id in ids]
+    newest_two = filenames[1:][::-1]  # last two inserted, newest first
+    oldest = filenames[0]
 
-    assert response.status_code == 200
-    assert "/photos/a.jpg" in response.text
-    assert "/photos/c.png" in response.text
-    assert "/photos/b.txt" not in response.text
+    page_one = client.get("/photos")
+    assert page_one.status_code == 200
+    assert all(name in page_one.text for name in newest_two)
+    assert oldest not in page_one.text
+    assert "?page=2" in page_one.text
+
+    page_two = client.get("/photos", params={"page": 2})
+    assert page_two.status_code == 200
+    assert oldest in page_two.text
 
 
 def test_serve_photo_returns_file(client, tmp_path, monkeypatch):
