@@ -4,7 +4,7 @@ Fine-tune efficientnet-b0 into a real dog / not-dog binary classifier.
 Replaces the 1000-class ImageNet head with a 2-class linear layer and
 trains only that head (linear probe) on:
 
-    - `src/photos/*`     -> label "dog"
+    - `photos/*`     -> label "dog"
     - `data/training/*`  -> label "not dog"
 
 ```python
@@ -28,7 +28,7 @@ from transformers import AutoImageProcessor, AutoModelForImageClassification
 BASE_MODEL_PATH = "models/efficientnet-b0"
 OUTPUT_MODEL_PATH = "models/efficientnet-b0-dog-classifier"
 
-DOG_DIR = Path("src/photos")
+DOG_DIR = Path("photos")
 NOT_DOG_DIR = Path("data/training")
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 

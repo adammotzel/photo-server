@@ -1,10 +1,12 @@
 import uuid
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from src.constants import NAME
+from src.constants import CONFIG
 from src.db import pool, write_photo_metadata
+from src.utils import thumbnail_path, write_thumbnail
 
 pytestmark = pytest.mark.usefixtures("db_pool")
 
@@ -71,7 +73,7 @@ def test_read_root(client):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert NAME in response.text
+    assert CONFIG.name in response.text
 
 
 def test_upload_form(client):
@@ -332,6 +334,133 @@ def test_view_photos_pagination(client, monkeypatch):
     page_two = client.get("/photos", params={"page": 2})
     assert page_two.status_code == 200
     assert oldest in page_two.text
+
+
+def test_gallery_links_thumbnails_to_full_size_photos(client):
+    """
+    Verify the gallery grid renders thumbnails, not the full-resolution
+    originals, and links each one to its full-size photo.
+
+    Parameters
+    ----------
+    client : fastapi.testclient.TestClient
+        Test client fixture for hitting the real app routes.
+    """
+    photo_id = write_photo_metadata(
+        stored_filename=f"{uuid.uuid4()}.jpg", content_type="image/jpeg"
+    )
+    filename = _fetch_photo_stored_filename(photo_id)
+
+    response = client.get("/photos")
+
+    assert response.status_code == 200
+    assert f'src="/thumbnails/{filename}"' in response.text
+    assert f'href="/photos/{filename}"' in response.text
+    assert f'src="/photos/{filename}"' not in response.text
+
+
+def test_serve_thumbnail_returns_thumbnail(client, upload_dir, sample_image_bytes):
+    """
+    Verify the thumbnail route serves the generated thumbnail, and that it is
+    substantially smaller than the original it stands in for.
+
+    Parameters
+    ----------
+    client : fastapi.testclient.TestClient
+        Test client fixture for hitting the real app routes.
+    upload_dir : pathlib.Path
+        Temp directory `UPLOAD_FOLDER` is redirected to for this test.
+    sample_image_bytes : bytes
+        Bytes of a real image to build a thumbnail from.
+    """
+    stored_filename = f"{uuid.uuid4()}.jpg"
+    (upload_dir / stored_filename).write_bytes(sample_image_bytes)
+    write_thumbnail(
+        sample_image_bytes,
+        thumbnail_path(str(upload_dir), stored_filename),
+    )
+
+    response = client.get(f"/thumbnails/{stored_filename}")
+
+    assert response.status_code == 200
+    assert len(response.content) < len(sample_image_bytes)
+    assert response.headers[
+        "cache-control"
+    ] == "public, max-age=31536000, immutable"
+
+    # not guessed from the extension: '.webp' is missing from some platforms'
+    # mimetype registries, and octet-stream makes browsers download the tile
+    assert response.headers["content-type"] == "image/webp"
+
+
+def test_serve_thumbnail_falls_back_to_original(
+    client,
+    upload_dir,
+    sample_image_bytes
+):
+    """
+    Verify photos with no thumbnail on disk (uploaded before thumbnails
+    existed) still render, by falling back to the original.
+
+    Parameters
+    ----------
+    client : fastapi.testclient.TestClient
+        Test client fixture for hitting the real app routes.
+    upload_dir : pathlib.Path
+        Temp directory `UPLOAD_FOLDER` is redirected to for this test.
+    sample_image_bytes : bytes
+        Bytes of a real image to serve.
+    """
+    stored_filename = f"{uuid.uuid4()}.jpg"
+    (upload_dir / stored_filename).write_bytes(sample_image_bytes)
+
+    response = client.get(f"/thumbnails/{stored_filename}")
+
+    assert response.status_code == 200
+    assert response.content == sample_image_bytes
+
+
+def test_upload_writes_thumbnail(
+    client,
+    upload_dir,
+    force_inference,
+    sample_image_bytes
+):
+    """
+    Verify an accepted upload writes a thumbnail alongside the original.
+
+    Parameters
+    ----------
+    client : fastapi.testclient.TestClient
+        Test client fixture for hitting the real app routes.
+    upload_dir : pathlib.Path
+        Temp directory `UPLOAD_FOLDER` is redirected to for this test.
+    force_inference : Callable[[str, float], None]
+        Fixture used to force the classifier to return a fixed label and
+        confidence.
+    sample_image_bytes : bytes
+        Bytes of a real image to upload.
+    """
+    force_inference("dog", 0.95)
+    original_filename = f"{uuid.uuid4()}.jpg"
+
+    response = client.post(
+        "/upload",
+        files=[
+            ("files", (original_filename, sample_image_bytes, "image/jpeg"))
+        ],
+    )
+
+    assert response.status_code == 200
+
+    row = _fetch_prediction(original_filename)
+    assert row is not None
+    photo_id, _ = row
+    stored_filename = _fetch_photo_stored_filename(photo_id)
+
+    thumbnail = Path(thumbnail_path(str(upload_dir), stored_filename))
+    assert thumbnail.exists()
+    assert thumbnail.stat().st_size < len(sample_image_bytes)
 
 
 def test_serve_photo_returns_file(client, tmp_path, monkeypatch):

@@ -10,9 +10,9 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from src.constants import (
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES,
+    CONFIG,
     MODEL_PATH,
-    NAME,
-    NETWORK_NAME,
+    PHOTO_CACHE_HEADERS,
     PHOTOS_PAGE_SIZE,
     UPLOAD_FOLDER,
     templates,
@@ -26,7 +26,7 @@ from src.db import (
 )
 from src.logger import listener, logger
 from src.model import inference, load_model
-from src.utils import save_photo
+from src.utils import save_photo, thumbnail_path
 
 
 @asynccontextmanager
@@ -39,8 +39,8 @@ async def lifespan(app: FastAPI):
     app.state.processor, app.state.model = load_model(MODEL_PATH)
     logger.info("Setting up database connection pool...")
     pool.open()
-    app.state.network_id = upsert_network(NETWORK_NAME)
-    logger.info(f"App launched on Wi-Fi network '{NETWORK_NAME}'")
+    app.state.network_id = upsert_network(CONFIG.network_name)
+    logger.info(f"App launched on Wi-Fi network '{CONFIG.network_name}'")
 
     yield
 
@@ -119,6 +119,7 @@ async def _process_upload(
         photo_id = await run_in_threadpool(
             save_photo,
             file_location,
+            thumbnail_path(UPLOAD_FOLDER, unique_filename),
             contents,
             unique_filename,
             content_type,
@@ -144,7 +145,7 @@ async def _process_upload(
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     """Serve the Home page."""
-    return templates.TemplateResponse(request, "index.html", {"name": NAME})
+    return templates.TemplateResponse(request, "index.html", {"name": CONFIG.name})
 
 
 @app.get("/upload", response_class=HTMLResponse)
@@ -256,17 +257,50 @@ async def view_photos(request: Request, page: int = 1):
         )
 
 
+@app.get("/thumbnails/{filename}", response_class=FileResponse)
+async def serve_thumbnail(filename: str, request: Request):
+    """
+    Serve gallery-sized thumbnails, keyed by the photo's stored filename.
+
+    Falls back to the full-size original for photos uploaded before thumbnails
+    existed, or whose thumbnail failed to render.
+    """
+
+    try:
+        safe_name = os.path.basename(filename)
+        file_path = thumbnail_path(UPLOAD_FOLDER, safe_name)
+
+        media_type = "image/webp"
+
+        if not os.path.exists(file_path):
+            logger.warning(
+                f"No thumbnail for '{safe_name}'; serving the full-size original."
+            )
+            file_path = os.path.join(UPLOAD_FOLDER, safe_name)
+            media_type = None
+
+        return FileResponse(
+            file_path,
+            media_type=media_type,
+            headers=PHOTO_CACHE_HEADERS,
+        )
+
+    except Exception:
+        logger.error(f"Failed to fetch thumbnail '{filename}'.", exc_info=True)
+
+        return templates.TemplateResponse(
+            request, "gallery.html", {"success": False, "error": True}
+        )
+
+
 @app.get("/photos/{filename}", response_class=FileResponse)
 async def serve_photo(filename: str, request: Request):
-    """Serve photos for the gallery."""
+    """Serve full-size photos, linked to from the gallery."""
 
     try:
         file_path = os.path.join(UPLOAD_FOLDER, os.path.basename(filename))
 
-        return FileResponse(
-            file_path,
-            headers={"Cache-Control": "public, max-age=31536000, immutable"},
-        )
+        return FileResponse(file_path, headers=PHOTO_CACHE_HEADERS)
 
     except Exception:
         logger.error(f"Failed to fetch photo '{filename}'.", exc_info=True)

@@ -91,7 +91,7 @@ Test modules under `tests/` mirror the modules they exercise in `src/`:
 | `tests/app/test_app.py` | `src/app.py` (FastAPI routes) |
 | `tests/db/test_db.py` | `src/db.py` (database writes) |
 | `tests/model/test_model.py` | `src/model.py` (classifier inference) |
-| `tests/utils/test_utils.py` | `src/utils.py` (photo save/cleanup helpers) |
+| `tests/utils/test_utils.py` | `src/utils.py` (photo save/cleanup and thumbnail helpers) |
 
 This keeps each suite scoped to a single area of responsibility and makes it
 obvious where a new test belongs when a `src/` module changes.
@@ -127,7 +127,7 @@ each test having to request it by name.
   Nothing is mocked at the HTTP or SQL layer. Only external effects that
   would be slow, non-deterministic, or destructive (classifier inference,
   disk writes) are stubbed or redirected.
-- No test ever writes to the real `src/photos` upload folder; `upload_dir` in
+- No test ever writes to the real `photos` upload folder; `upload_dir` in
   `tests/app/conftest.py` redirects every app test to a temp directory that's
   removed automatically afterward.
 - Full docstrings on each test function describe the specific scenario and

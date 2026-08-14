@@ -1,0 +1,16 @@
+.git
+.venv
+.env
+.env.test
+certs
+.coverage
+data
+notebooks
+tests
+docs
+photos
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
