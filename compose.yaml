@@ -1,0 +1,23 @@
+---
+name: photo-server
+
+services:
+  app:
+    build: .
+    image: photo-server:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Postgres runs on the host and is configured ahead of time
+      # (see docs/setup/POSTGRES.md); localhost would be the container itself
+      DB_HOST: host.docker.internal
+    extra_hosts:
+      # provided automatically by Docker Desktop; explicit for Linux hosts
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${SERVER_PORT:-8000}:${SERVER_PORT:-8000}"
+    volumes:
+      # uploads persist on the host, not in the container layer
+      - ./photos:/app/photos
+      # TLS key stays on the host, read-only
+      - ./certs:/app/certs:ro

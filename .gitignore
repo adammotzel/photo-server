@@ -194,5 +194,4 @@ efficientnet-b0-dog-classifier/
 *.webp
 
 # TLS certs
-certs/
 *.pem

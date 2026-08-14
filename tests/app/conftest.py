@@ -42,7 +42,7 @@ def upload_dir(monkeypatch):
     Redirect `UPLOAD_FOLDER` to a temp dir that is always removed afterward.
 
     Autouse so no test in this module can accidentally upload to or delete
-    from the real `src/photos` folder, even if it doesn't request this
+    from the real `photos` folder, even if it doesn't request this
     fixture by name.
 
     Parameters

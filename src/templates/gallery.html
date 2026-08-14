@@ -23,6 +23,11 @@
             margin: 0 auto;
         }
 
+        .gallery a {
+            display: block;
+            line-height: 0;
+        }
+
         .gallery img {
             max-width: 100%;
             height: auto;
@@ -78,7 +83,9 @@
     <h1>Photo Gallery</h1>
     <div class="gallery">
         {% for photo in photos %}
-            <img src="/photos/{{ photo }}" alt="{{ photo }}" loading="lazy">
+            <a href="/photos/{{ photo }}" target="_blank" rel="noopener">
+                <img src="/thumbnails/{{ photo }}" alt="{{ photo }}" loading="lazy" decoding="async">
+            </a>
         {% else %}
             <p>No photos have been uploaded.</p>
         {% endfor %}
