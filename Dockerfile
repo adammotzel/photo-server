@@ -14,7 +14,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project --no-cache
 
-# relevant app files (certs are mounted at runtime, not baked in)
+# relevant app files (certs are mounted at runtime)
 COPY src/ ./src/
 COPY scripts/run.py ./scripts/run.py
 COPY models/ ./models/
