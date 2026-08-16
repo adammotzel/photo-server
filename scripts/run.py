@@ -1,11 +1,6 @@
 import os
 
 import uvicorn
-from dotenv import load_dotenv
-
-# load .env -- needed outside of container
-if not os.getenv("NETWORK_NAME"):
-    load_dotenv(f"{os.getcwd()}/.env")
 
 uvicorn.run(
     "src.app:app", 

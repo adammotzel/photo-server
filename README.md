@@ -1,6 +1,6 @@
 # Photo Server
 
-A quick side project to serve photos of my dog on a web app to anyone connected to my home Wi-Fi.
+A side project to serve photos of my dog on a web app to anyone connected to my home Wi-Fi.
 
 ## App Features
 
@@ -19,6 +19,9 @@ Dependency Management:
 
 Backend Services:
 - PostgreSQL
+
+Containerization:
+- Docker + compose
 
 Security:
 - OpenSSL (self-signed TLS certs)
@@ -47,7 +50,7 @@ Google's `efficientnet-b0` vision model offers solid accuracy and low resource c
 
 ### Security
 
-This app is only served on trusted Wi-Fi (LAN), never exposed to the internet, so there are no accounts, login, or auth layer. Traffic is still encrypted over HTTPS using a self-signed cert, so it isn't sent in plaintext to other devices on the network; in-network devices see a one-time browser warning since the cert isn't from a trusted CA. See [docs/setup/CONFIG.md](docs/setup/CONFIG.md) for cert setup.
+This app is only served on trusted Wi-Fi (LAN), never exposed to the internet. Traffic is still encrypted over HTTPS using a self-signed cert; in-network devices see a one-time browser warning since the cert isn't from a trusted CA. See [docs/setup/CONFIG.md](docs/setup/CONFIG.md) for cert setup.
 
 ## Documentation
 

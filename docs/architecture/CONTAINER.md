@@ -1,6 +1,6 @@
 # App Container
 
-The app runs in a Docker container, built from the `Dockerfile` and orchestrated with `compose.yaml`. Postgres is **not** containerized; it stays on the host, configured ahead of time (see [POSTGRES.md](../setup/POSTGRES.md)). Only the FastAPI app is containerized. This keeps the API/service layer decoupled from the database layer.
+The app runs in a Docker container, built from the `Dockerfile` and orchestrated with `compose.yaml`. The Postgres database is **not** containerized; it stays on the host (see [POSTGRES.md](../setup/POSTGRES.md)). Only the FastAPI app is containerized. This keeps the API/service layer decoupled from the database layer.
 
 ## Image
 

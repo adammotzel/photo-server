@@ -1,110 +1,24 @@
 # PostgreSQL Database Setup
 
-App database setup documentation. All steps completed using my Postgres admin user and the `psql` shell.
+App database setup documentation. Run [scripts/db/create_db.sql](../../scripts/db/create_db.sql)
+as a Postgres admin user from a `psql` shell:
 
-## Initial App Setup
-
-#### Create app user:
-```sql
-CREATE USER photoapp_user WITH PASSWORD 'secret-goes-here';
+```bash
+psql -U <admin_user> -f scripts/db/create_db.sql
 ```
 
-The secret is stored in the `.env` file with the name `DB_PASSWORD`.
+The script prompts for the `photoapp_user` password. Store the value you enter in the `.env` file as `DB_PASSWORD`. 
 
-#### Create new db:
-```sql
-CREATE DATABASE photoapp;
-```
-
-#### Switch to new db:
-```sql
-\c photoapp
-```
-
-#### Grant access to db:
-```sql
-GRANT CONNECT ON DATABASE photoapp TO photoapp_user;
-```
+It then creates the `photoapp_user` role, the `photoapp` database, tables, and grants. It's safe to re-run.
 
 ## Tables
 
-### Photos Table
+- `photos`
+- `networks`
+- `predictions`
 
-#### Create `photos` table:
-```sql
-CREATE TABLE photos (
-    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
-    stored_filename TEXT NOT NULL UNIQUE, 
-    content_type TEXT, 
-    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
+See [DATABASE.md](../architecture/DATABASE.md) for schemas and design notes.
 
-#### Grant access to app user:
-```sql
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE photos
-TO photoapp_user;
+## Grants
 
-GRANT USAGE, SELECT, UPDATE 
-ON SEQUENCE photos_id_seq 
-TO photoapp_user;
-```
-
-### Networks Table
-
-#### Create `networks` table:
-```sql
-CREATE TABLE networks (
-    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
-);
-```
-
-`name` is `UNIQUE` because it's the app's upsert key: on every startup, the app looks up (or creates)
-a row by network name, and reuses its `id` for the lifetime of that process.
-
-#### Grant access to app user:
-```sql
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE networks
-TO photoapp_user;
-
-GRANT USAGE, SELECT, UPDATE 
-ON SEQUENCE networks_id_seq 
-TO photoapp_user;
-```
-
-### Predictions Table
-
-#### Create `predictions` table:
-```sql
-CREATE TABLE predictions (
-    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    photo_id INT REFERENCES photos(id) ON DELETE SET NULL,
-    network_id INT REFERENCES networks(id) ON DELETE SET NULL,
-    original_filename TEXT NOT NULL,
-    predicted_label TEXT NOT NULL,
-    confidence REAL NOT NULL,
-    uploader_ip TEXT NOT NULL,
-    predicted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
-
-The `photo_id` field is nullable because rejected uploads (predicted label != "dog") are never saved to 
-the `photos` table, but the prediction is still logged for model monitoring. `ON DELETE SET NULL` 
-keeps prediction history intact if a photo is later removed.
-
-The `network_id` field is nullable for the same reason: `ON DELETE SET NULL` keeps prediction
-history intact if a network row is later removed.
-
-#### Grant access to app user:
-```sql
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE predictions
-TO photoapp_user;
-
-GRANT USAGE, SELECT, UPDATE 
-ON SEQUENCE predictions_id_seq 
-TO photoapp_user;
-```
+The app user gets `SELECT, INSERT, UPDATE, DELETE`, and `USAGE, SELECT, UPDATE` on the database tables.

@@ -4,87 +4,24 @@ App testing setup documentation.
 
 ## Setup
 
-Create a test database and build its schema from scratch:
+Create the test database, user, tables, and grants by running
+[scripts/db/create_test_db.sql](../../scripts/db/create_test_db.sql) as a Postgres admin user:
 
-```sql
-CREATE DATABASE photoapp_test;
-\c photoapp_test
-
-CREATE TABLE photos (
-    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
-    stored_filename TEXT NOT NULL UNIQUE, 
-    content_type TEXT, 
-    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE networks (
-    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
-);
-
-CREATE TABLE predictions (
-    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    photo_id INT REFERENCES photos(id) ON DELETE SET NULL,
-    network_id INT REFERENCES networks(id) ON DELETE SET NULL,
-    original_filename TEXT NOT NULL,
-    predicted_label TEXT NOT NULL,
-    confidence REAL NOT NULL,
-    uploader_ip TEXT NOT NULL,
-    predicted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+```bash
+psql -U <admin_user> -f scripts/db/create_test_db.sql
 ```
 
-Create a test user:
+The script prompts for the `photoapp_user_test` password. Store the value you enter in the `.env.test` file as `DB_PASSWORD`. 
 
-```sql
-CREATE USER photoapp_user_test WITH PASSWORD 'secret-goes-here';
-```
-
-Still connected to `photoapp_test`, grant access to the app user:
-
-```sql
-GRANT CONNECT ON DATABASE photoapp_test TO photoapp_user_test;
-
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE photos
-TO photoapp_user_test;
-
-GRANT USAGE, SELECT, UPDATE 
-ON SEQUENCE photos_id_seq 
-TO photoapp_user_test;
-
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE predictions
-TO photoapp_user_test;
-
-GRANT USAGE, SELECT, UPDATE 
-ON SEQUENCE predictions_id_seq 
-TO photoapp_user_test;
-
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE networks
-TO photoapp_user_test;
-
-GRANT USAGE, SELECT, UPDATE 
-ON SEQUENCE networks_id_seq 
-TO photoapp_user_test;
-```
-
-The `networks` grant is required even though tests don't exercise it directly: the app's
-`lifespan()` calls `upsert_network()` on startup, and the `client` fixture in
-`tests/app/conftest.py` boots the real app, so every test run touches this table.
+It then creates the `photoapp_user` role, the `photoapp` database, tables, and grants. It's safe to re-run.
 
 ## Unit Testing
 
-Unit tests use [pytest](https://docs.pytest.org/), with coverage reported by
-`pytest-cov`. Both are configured in `pyproject.toml`: `testpaths` points at
-`tests/`, load tests are excluded (see [Load Testing](#load-testing)), and 
-`addopts` enables a coverage report on every run. Running `pytest` from project 
-root picks all of this up automatically.
+Unit tests use [pytest](https://docs.pytest.org/), with coverage reported by `pytest-cov`. 
+
+Both are configured in `pyproject.toml`: `testpaths` points at `tests/`, load tests are excluded (see [Load Testing](#load-testing)), and `addopts` enables a coverage report on every run. Running `pytest` from project root picks all of this up automatically.
 
 ### Directory Structure
-
-Test modules under `tests/` mirror the modules they exercise in `src/`:
 
 | Test module | Exercises |
 |---|---|
@@ -123,15 +60,9 @@ each test having to request it by name.
 
 ### Design Notes
 
-- Tests hit the real app and a real Postgres database (`photoapp_test`).
-  Nothing is mocked at the HTTP or SQL layer. Only external effects that
-  would be slow, non-deterministic, or destructive (classifier inference,
-  disk writes) are stubbed or redirected.
-- No test ever writes to the real `photos` upload folder; `upload_dir` in
-  `tests/app/conftest.py` redirects every app test to a temp directory that's
-  removed automatically afterward.
-- Full docstrings on each test function describe the specific scenario and
-  assertions.
+- Tests hit a real, running app and a real Postgres database (`photoapp_test`). Nothing is mocked at the HTTP or SQL layer. Only external effects that would be slow, non-deterministic, or destructive (classifier inference, disk writes) are stubbed or redirected.
+- No test ever writes to the real `photos` upload folder; `upload_dir` in `tests/app/conftest.py` redirects every app test to a temp directory that's removed afterward.
+- Full docstrings on each test function describe the specific scenario and assertions.
 
 ### Cleanup
 
@@ -148,9 +79,7 @@ Start the app:
 bash scripts/tests/run_test_app.sh
 ```
 
-This sources `.env.test` before `scripts/run.py` loads `.env`, so `DB_NAME` /
-`DB_USER` / `DB_PASSWORD` resolve to the test database (same `.env.test` file
-used by the unit tests, see [CONFIG.md](CONFIG.md)) instead of production.
+This sources `.env.test` before `scripts/run.py` loads `.env`, so `DB_NAME` / `DB_USER` / `DB_PASSWORD` resolve to the test database (same `.env.test` file used by the unit tests, see [CONFIG.md](CONFIG.md)) instead of production.
 
 Run the tests:
 ```bash
