@@ -55,3 +55,19 @@ This app is only served on trusted Wi-Fi (LAN), never exposed to the internet. T
 ## Documentation
 
 See [docs/architecture](docs/architecture) for a deeper architecture breakdown and [docs/setup](docs/setup) for app configuration details.
+
+## Deployment
+
+The app can be deployed from host or from a Docker container.
+
+Build and run using Docker:
+```bash
+docker compose up --build -d
+```
+
+Run from host:
+```python
+uv run --no-sync python -m scripts.run
+```
+
+Both options assume the [setup](docs/setup) instructions have been followed.
