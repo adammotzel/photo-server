@@ -122,7 +122,7 @@ docker compose up --build -d
 
 Builds the image, tags it `photo-server:latest` (per `image:` in the compose file), and starts the container detached. Drop `-d` to run in the foreground.
 
-After the first build, `--build` is only needed when something that goes *into* the image changes (`src/`, `scripts/run.py`, `models/`, `pyproject.toml`, `uv.lock`). Note that `certs/` is not on that list — it's mounted, so a new cert only needs a restart:
+After the first build, `--build` is only needed when something that goes *into* the image changes (`src/`, `scripts/run.py`, `models/`, `pyproject.toml`, `uv.lock`). Note that `certs/` is not on that list; it's mounted, so a new cert only needs a restart:
 
 ```bash
 docker compose up -d
