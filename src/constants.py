@@ -2,7 +2,7 @@ from fastapi.templating import Jinja2Templates
 
 from src.config import Config
 
-CONFIG = Config()  # ty: ignore[missing-argument]
+config = Config()  # ty: ignore[missing-argument]
 
 UPLOAD_FOLDER = "photos"
 ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp")

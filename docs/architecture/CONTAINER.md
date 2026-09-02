@@ -1,6 +1,6 @@
 # App Container
 
-The app runs in a Docker container, built from the `Dockerfile` and orchestrated with `compose.yaml`. The Postgres database is **not** containerized; it stays on the host (see [POSTGRES.md](../setup/POSTGRES.md)). Only the FastAPI app is containerized. This keeps the API/service layer decoupled from the database layer.
+The app runs in a Docker container, built from the `Dockerfile` and orchestrated with `compose.yaml`. The Postgres database is **not** containerized; it stays on the host (see [01_POSTGRES.md](../setup/01_POSTGRES.md)). Only the FastAPI app is containerized. This keeps the API/service layer decoupled from the database layer.
 
 ## Image
 
@@ -76,8 +76,6 @@ CMD ["uv", "run", "--no-sync", "python", "-m", "scripts.run"]
 
 `--no-sync` tells `uv` not to re-check or re-resolve the environment at startup. The image was built with the exact locked dependencies, so syncing at runtime would be wasted work (and would fail in a read-only or offline context).
 
-`scripts/run.py` calls `load_dotenv()` only if `NETWORK_NAME` is unset. In the container the environment is already populated by compose, so the `.env` load is skipped; outside the container it still works.
-
 ## Compose
 
 `compose.yaml` handles everything that varies at runtime.
@@ -151,4 +149,4 @@ The photo count is the quickest mount sanity check: it should match `ls photos/ 
 ### Prerequisites
 
 - **Postgres must be running on the host** before starting the container. The app connects out to it via `host.docker.internal`.
-- **`certs/` must exist at start time**, since it's mounted. Generate the pair first if missing (see [CONFIG.md](../setup/CONFIG.md)). If the directory is missing, Docker creates an empty one and the app fails at startup on the missing key file rather than serving without TLS. Rotating certs needs only `docker compose restart`, not a rebuild.
+- **`certs/` must exist at start time**, since it's mounted. Generate the pair first if missing (see [02_CONFIG.md](../setup/02_CONFIG.md)). If the directory is missing, Docker creates an empty one and the app fails at startup on the missing key file rather than serving without TLS. Rotating certs needs only `docker compose restart`, not a rebuild.

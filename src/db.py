@@ -1,14 +1,14 @@
 from psycopg_pool import ConnectionPool
 
-from src.constants import CONFIG
+from src.constants import config
 
 pool = ConnectionPool(
     conninfo=(
-        f"dbname={CONFIG.db_name} "
-        f"user={CONFIG.db_user} "
-        f"password={CONFIG.db_password.get_secret_value()} "
-        f"host={CONFIG.db_host} "
-        f"port={CONFIG.db_port}"
+        f"dbname={config.db_name} "
+        f"user={config.db_user} "
+        f"password={config.db_password.get_secret_value()} "
+        f"host={config.db_host} "
+        f"port={config.db_port}"
     ),
     min_size=2,
     max_size=10,

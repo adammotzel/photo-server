@@ -79,7 +79,7 @@ Start the app:
 bash scripts/tests/run_test_app.sh
 ```
 
-This sources `.env.test` before `scripts/run.py` loads `.env`, so `DB_NAME` / `DB_USER` / `DB_PASSWORD` resolve to the test database (same `.env.test` file used by the unit tests, see [CONFIG.md](CONFIG.md)) instead of production.
+The script exports `.env`, then exports `.env.test` on top of it, so `DB_NAME` / `DB_USER` / `DB_PASSWORD` resolve to the test database (same `.env.test` file used by the unit tests, see [02_CONFIG.md](02_CONFIG.md)) instead of production. It has to export `.env` itself because nothing loads it at runtime; this is the same order `tests/conftest.py` uses.
 
 Run the tests:
 ```bash

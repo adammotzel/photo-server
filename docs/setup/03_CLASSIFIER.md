@@ -9,3 +9,7 @@ My first pass was pretty lazy: I downloaded the model locally then relabeled all
 The `scripts/models/finetune.py` script replaces the classifier head with a real 2-class linear layer ("dog" / "not dog") and trains just that head. I used photos of my dog as the "positive" class, and other random photos from my camera roll as the "negative" class.
 
 > NOTE: The base efficientnet-b0 model and my fine-tuned version are not commited to the repository.
+
+## Serving
+
+The finetuning script writes the model artifacts to the `models/` directory. The app will load the model from here during startup.

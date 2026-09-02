@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.constants import CONFIG
+from src.constants import config
 from src.db import pool, write_photo_metadata
 from src.utils import thumbnail_path, write_thumbnail
 
@@ -73,7 +73,7 @@ def test_read_root(client):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert CONFIG.name in response.text
+    assert config.name in response.text
 
 
 def test_upload_form(client):
