@@ -34,9 +34,9 @@ FastAPI is my default Python web framework. It's just really easy to use.
 
 The endpoints are defined as async, but most core app functions are written synchronously. I use FastAPI's `run_in_threadpool` utility to offload blocking operations to worker threads. It works well for an app of this size.
 
-### HTML Frontend
+### Vanilla HTML Frontend
 
-It's a simple app, and HTML works fine for serving static web pages. Maybe someday I'll implement a heavier frontend framework for fun.
+It's a simple app, and basic HTML works fine for serving static web pages. Maybe someday I'll implement a heavier frontend framework for fun.
 
 ### PostgreSQL Database Backend
 
@@ -50,7 +50,7 @@ Google's `efficientnet-b0` vision model offers solid accuracy and low resource c
 
 ### Security
 
-This app is only served on trusted Wi-Fi (LAN), never exposed to the internet. Traffic is still encrypted over HTTPS using a self-signed cert; in-network devices see a one-time browser warning since the cert isn't from a trusted CA. See [docs/setup/CONFIG.md](docs/setup/CONFIG.md) for cert setup.
+This app is only served on trusted Wi-Fi (LAN), never exposed to the internet. Traffic is still encrypted over HTTPS using a self-signed cert; in-network devices see a one-time browser warning since the cert isn't from a trusted CA. See [docs/setup/02_CONFIG.md](docs/setup/02_CONFIG.md) for cert setup.
 
 ## Documentation
 

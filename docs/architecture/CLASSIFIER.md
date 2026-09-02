@@ -4,7 +4,7 @@ The classifier's job is to gate uploads: only images predicted as `"dog"` are sa
 
 ## Model
 
-The base `google/efficientnet-b0` model's classifier head is replaced with a 2-class linear layer (`"dog"` / `"not dog"`), and only that head is trained. See [docs/setup/CLASSIFIER.md](../setup/CLASSIFIER.md) for how I run the fine-tuning script and where the training data comes from.
+The base `google/efficientnet-b0` model's classifier head is replaced with a 2-class linear layer (`"dog"` / `"not dog"`), and only that head is trained. See [docs/setup/03_CLASSIFIER.md](../setup/03_CLASSIFIER.md) for how I run the fine-tuning script and where the training data comes from.
 
 ## Inference
 

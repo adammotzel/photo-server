@@ -10,11 +10,11 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from src.constants import (
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES,
-    CONFIG,
     MODEL_PATH,
     PHOTO_CACHE_HEADERS,
     PHOTOS_PAGE_SIZE,
     UPLOAD_FOLDER,
+    config,
     templates,
 )
 from src.db import (
@@ -39,8 +39,8 @@ async def lifespan(app: FastAPI):
     app.state.processor, app.state.model = load_model(MODEL_PATH)
     logger.info("Setting up database connection pool...")
     pool.open()
-    app.state.network_id = upsert_network(CONFIG.network_name)
-    logger.info(f"App launched on Wi-Fi network '{CONFIG.network_name}'")
+    app.state.network_id = upsert_network(config.network_name)
+    logger.info(f"App launched on Wi-Fi network '{config.network_name}'")
 
     yield
 
@@ -145,7 +145,7 @@ async def _process_upload(
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     """Serve the Home page."""
-    return templates.TemplateResponse(request, "index.html", {"name": CONFIG.name})
+    return templates.TemplateResponse(request, "index.html", {"name": config.name})
 
 
 @app.get("/upload", response_class=HTMLResponse)
