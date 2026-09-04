@@ -18,9 +18,9 @@ Do these steps first:
 
 The [Dockerfile](../../Dockerfile) makes the image in these steps:
 
-1. It starts from the `python:3.12-slim` image.
-2. It copies the `uv` binary into the image.
-3. It installs the locked dependencies from `pyproject.toml` and `uv.lock`. It does not install the dev dependencies.
+1. It starts from the `python:3.12-slim` image, pinned by digest.
+2. It copies the `uv` binary into the image, pinned to an exact version.
+3. It installs the locked dependencies from `pyproject.toml` and `uv.lock` with `uv sync --locked`. It does not install the dev dependencies. The build fails if `uv.lock` is out of sync with `pyproject.toml`.
 4. It copies `src/`, `scripts/run.py`, and `models/` into `/app`.
 5. It makes the `/app/photos` directory and the non-root user `app`.
 6. It runs the app with the command `uv run --no-sync python -m scripts.run`.
@@ -37,11 +37,16 @@ Make sure that Postgres accepts connections from the Docker network. Also make s
 
 ## Build and Start the App
 
-Build the image and start the container:
+Build the image, then start the container:
 
 ```bash
-docker compose up --build -d
+bash scripts/build.sh
+docker compose up -d
 ```
+
+`scripts/build.sh` reads the version from `pyproject.toml` and the short git SHA of `HEAD` to form the tag `photo-server:<version>-<sha>`, then runs `docker compose build` with it. It refuses to run unless you are on a clean `main` checkout, so every image maps back to one commit.
+
+On success it writes `PHOTO_SERVER_TAG=<version>-<sha>` into `.env` (creating the line or updating it in place). `compose.yaml` reads that variable to decide which image to run, so `docker compose up -d` always runs the image you just built. There is no `latest` tag. To run an older build, set `PHOTO_SERVER_TAG` in `.env` to that tag by hand.
 
 The `-d` option starts the container in the background.
 

@@ -3,8 +3,10 @@ name: photo-server
 
 services:
   app:
-    build: .
-    image: photo-server:latest
+    build:
+      context: .
+    # built and tagged only by scripts/build.sh, which sets PHOTO_SERVER_TAG (version-shortsha) in .env
+    image: photo-server:${PHOTO_SERVER_TAG:?run scripts/build.sh first}
     restart: unless-stopped
     env_file: .env
     environment:

@@ -58,12 +58,15 @@ See [docs/architecture](docs/architecture) for a deeper architecture breakdown a
 
 ## Deployment
 
-The app can be deployed from host or from a Docker container.
+The app can be deployed directly from host or from a Docker container.
 
 Build and run using Docker:
 ```bash
-docker compose up --build -d
+bash scripts/build.sh
+docker compose up -d
 ```
+
+`scripts/build.sh` only builds from a clean `main` checkout, so every image maps back to one commit. It runs `docker compose build` and sets `PHOTO_SERVER_TAG` in `.env` to the tag it just built, which is what `docker compose` runs. See [docs/architecture/CONTAINER.md](docs/architecture/CONTAINER.md) for details.
 
 Run from host:
 ```python

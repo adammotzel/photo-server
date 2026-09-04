@@ -6,23 +6,25 @@ The app runs in a Docker container, built from the `Dockerfile` and orchestrated
 
 ### Base + dependency install
 
-The image starts from `python:3.12-slim` and pulls the `uv` binary straight from its official image:
+The image starts from `python:3.12-slim`, pinned by digest, and pulls the `uv` binary straight from its official image at a pinned version + digest:
 
 ```dockerfile
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
+FROM python:3.12-slim@sha256:<digest>
+
+COPY --from=ghcr.io/astral-sh/uv:0.12.9@sha256:<digest> /uv /bin/
 ```
 
-That avoids an install step and keeps `uv` at whatever the current release is.
+Pinning both by digest means a rebuild uses byte-for-byte the same base layers and the same `uv`, rather than whatever the `python:3.12-slim` / `uv:latest` tags happen to point at that day. To bump either, resolve the new digest with `docker buildx imagetools inspect <ref>` and update the `Dockerfile` line (pin the multi-arch *index* digest, not a per-platform manifest).
 
 Dependencies are installed *before* the app code is copied in:
 
 ```dockerfile
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project --no-cache
+RUN uv sync --locked --no-dev --no-install-project --no-cache
 ```
 The flags:
 
-- `--frozen`: install exactly what `uv.lock` pins, and fail rather than silently re-resolving. The lock file is the source of truth.
+- `--locked`: install exactly what `uv.lock` pins, and additionally fail the build if `uv.lock` is out of date with `pyproject.toml`. The lock file is the source of truth, and this proves it is current. (`--frozen` would install from the lock without that consistency check.)
 - `--no-dev`: skip the dev dependency group. Test and lint tooling has no reason to be in a runtime image.
 - `--no-install-project`: install only the dependencies, not the project itself. The project code isn't in the image yet at this point, and installing it here would defeat the caching split.
 - `--no-cache`: don't leave `uv`'s download cache in the image layer.
@@ -84,7 +86,7 @@ CMD ["uv", "run", "--no-sync", "python", "-m", "scripts.run"]
 
 The same `.env` file is read twice, by two different mechanisms:
 
-1. **Compose interpolation**: Compose automatically reads `.env` from the project directory to resolve `${...}` expressions *in the compose file itself*. That's what makes `"${SERVER_PORT:-8000}:${SERVER_PORT:-8000}"` work, with `8000` as the fallback if the variable is missing.
+1. **Compose interpolation**: Compose automatically reads `.env` from the project directory to resolve `${...}` expressions *in the compose file itself*. That's what makes `"${SERVER_PORT:-8000}:${SERVER_PORT:-8000}"` work, with `8000` as the fallback if the variable is missing. It's also how `image: photo-server:${PHOTO_SERVER_TAG:?...}` resolves; `scripts/build.sh` writes `PHOTO_SERVER_TAG` here after each build, and the `:?` form makes Compose refuse to start if it's unset (i.e. nothing has been built yet).
 2. **`env_file: .env`**: Passes the variables into the container's environment at runtime, which is where the app actually reads them.
 
 ### Overrides
@@ -115,16 +117,22 @@ Run all of these from the project root.
 ### Build and run
 
 ```bash
-docker compose up --build -d
-```
-
-Builds the image, tags it `photo-server:latest` (per `image:` in the compose file), and starts the container detached. Drop `-d` to run in the foreground.
-
-After the first build, `--build` is only needed when something that goes *into* the image changes (`src/`, `scripts/run.py`, `models/`, `pyproject.toml`, `uv.lock`). Note that `certs/` is not on that list; it's mounted, so a new cert only needs a restart:
-
-```bash
+bash scripts/build.sh
 docker compose up -d
 ```
+
+`scripts/build.sh` is the only supported way to build the image. It:
+
+- refuses to run unless you are on `main` with a clean working tree, so every image maps back to exactly one commit;
+- reads the version from `pyproject.toml` (`[project].version`) and the short SHA from `git rev-parse --short HEAD`, giving one tag `photo-server:<version>-<sha>`. There is no `latest`;
+- runs `docker compose build` with that tag passed as `PHOTO_SERVER_TAG` — `compose.yaml`'s `build:` section is what actually describes the build, so there's one definition of context and args;
+- on success, writes `PHOTO_SERVER_TAG=<version>-<sha>` into `.env`.
+
+`docker compose up -d` then starts the container from `photo-server:${PHOTO_SERVER_TAG}` — the build you just made. Drop `-d` to run in the foreground. To run an older build instead, set `PHOTO_SERVER_TAG` in `.env` to that tag by hand and `docker compose up -d`.
+
+`compose.yaml` keeps its `build:` section, so `docker compose build` / `up --build` still work, but they skip the `main`-only and clean-tree checks and reuse whatever `PHOTO_SERVER_TAG` is already in `.env` — so a build from a dirty or non-`main` tree would be mislabelled with the previous commit's tag. Use `scripts/build.sh`.
+
+A rebuild is only needed when something that goes *into* the image changes (`src/`, `scripts/run.py`, `models/`, `pyproject.toml`, `uv.lock`, or the `Dockerfile`). `certs/` is not on that list; it's mounted, so a new cert only needs `docker compose restart`.
 
 ### Day-to-day
 
