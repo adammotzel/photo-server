@@ -3,6 +3,7 @@
 .env
 .env.test
 certs
+models
 .coverage
 data
 notebooks
