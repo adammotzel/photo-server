@@ -15,10 +15,9 @@ ENV UV_COMPILE_BYTECODE=1 \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project --no-cache
 
-# relevant app files (certs are mounted at runtime)
+# relevant app files (certs and models are mounted at runtime)
 COPY src/ ./src/
 COPY scripts/run.py ./scripts/run.py
-COPY models/ ./models/
 
 # non-root user
 RUN mkdir -p /app/photos \

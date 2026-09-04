@@ -21,3 +21,5 @@ services:
       - ./photos:/app/photos
       # certs on host, read-only
       - ./certs:/app/certs:ro
+      # classifier weights on host, read-only
+      - ./models:/app/models:ro

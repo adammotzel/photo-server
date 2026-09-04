@@ -50,14 +50,11 @@ ENV UV_COMPILE_BYTECODE=1 \
 ```dockerfile
 COPY src/ ./src/
 COPY scripts/run.py ./scripts/run.py
-COPY models/ ./models/
 ```
 
 Only what the app needs at runtime.
 
-`models/` is baked into the image because the classifier weights are static. They're part of what the image *is*, and change only when the model is retrained.
-
-`certs/` is deliberately **not** copied in. It's mounted at runtime instead (see below), so the self-signed private key never lands in an image layer. Baking it in would also mean a full rebuild every time the cert is rotated, since it expires on a 365-day clock.
+`certs/` and `models/` are deliberately **not** copied in. Both are mounted at runtime instead (see below). For `certs/`, this keeps the self-signed private key out of every image layer, and means cert rotation needs no rebuild since the cert expires on a 365-day clock. For `models/`, this keeps the classifier weights out of the image entirely; swapping in a retrained model is a matter of updating the host directory and restarting, not rebuilding.
 
 ### Non-root user
 
@@ -104,11 +101,14 @@ environment:
 volumes:
   - ./photos:/app/photos
   - ./certs:/app/certs:ro
+  - ./models:/app/models:ro
 ```
 
 **`photos`**: Uploads go to a bind mount. Without this, every `docker compose down` (or any image rebuild) would silently destroy every uploaded photo, while the `photos` rows in Postgres survived on the host, leaving the DB referencing files that no longer exist. Gallery thumbnails are written to a `thumbnails/` subfolder of this same directory (see [API](API.md)), so they persist on the same mount and need no volume of their own.
 
 **`certs`**: The TLS key pair is mounted rather than copied into the image, so the private key stays on the host and out of every image layer. It's mounted `:ro` because the app only ever reads the certs. The practical payoff is cert rotation: regenerating the pair on the host and running `docker compose restart` picks up the new cert, with no rebuild.
+
+**`models`**: The classifier weights are mounted rather than copied into the image for the same reason — they're mounted `:ro` because the app only reads them at startup. The practical payoff is size: the weight files are large, and keeping them off the image means smaller images and faster builds/pulls. Deploying a retrained model is dropping the new files in `models/` on the host and running `docker compose restart`, no rebuild.
 
 ## Commands
 
@@ -132,7 +132,7 @@ docker compose up -d
 
 `compose.yaml` keeps its `build:` section, so `docker compose build` / `up --build` still work, but they skip the `main`-only and clean-tree checks and reuse whatever `PHOTO_SERVER_TAG` is already in `.env` — so a build from a dirty or non-`main` tree would be mislabelled with the previous commit's tag. Use `scripts/build.sh`.
 
-A rebuild is only needed when something that goes *into* the image changes (`src/`, `scripts/run.py`, `models/`, `pyproject.toml`, `uv.lock`, or the `Dockerfile`). `certs/` is not on that list; it's mounted, so a new cert only needs `docker compose restart`.
+A rebuild is only needed when something that goes *into* the image changes (`src/`, `scripts/run.py`, `pyproject.toml`, `uv.lock`, or the `Dockerfile`). `certs/` and `models/` are not on that list; both are mounted, so a new cert or a retrained model only needs `docker compose restart`.
 
 ### Day-to-day
 
@@ -158,3 +158,4 @@ The photo count is the quickest mount sanity check: it should match `ls photos/ 
 
 - **Postgres must be running on the host** before starting the container. The app connects out to it via `host.docker.internal`.
 - **`certs/` must exist at start time**, since it's mounted. Generate the pair first if missing (see [02_CONFIG.md](../setup/02_CONFIG.md)). If the directory is missing, Docker creates an empty one and the app fails at startup on the missing key file rather than serving without TLS. Rotating certs needs only `docker compose restart`, not a rebuild.
+- **`models/` must contain the classifier weights at startup**, since it's mounted too. See [03_CLASSIFIER.md](../setup/03_CLASSIFIER.md) to produce them. If missing, the app fails at startup trying to load the model.

@@ -21,11 +21,11 @@ The [Dockerfile](../../Dockerfile) makes the image in these steps:
 1. It starts from the `python:3.12-slim` image, pinned by digest.
 2. It copies the `uv` binary into the image, pinned to an exact version.
 3. It installs the locked dependencies from `pyproject.toml` and `uv.lock` with `uv sync --locked`. It does not install the dev dependencies. The build fails if `uv.lock` is out of sync with `pyproject.toml`.
-4. It copies `src/`, `scripts/run.py`, and `models/` into `/app`.
+4. It copies `src/` and `scripts/run.py` into `/app`.
 5. It makes the `/app/photos` directory and the non-root user `app`.
 6. It runs the app with the command `uv run --no-sync python -m scripts.run`.
 
-The certificates and the photos are not in the image. Docker mounts them at run time.
+The certificates, the classifier model, and the photos are not in the image. Docker mounts them at run time.
 
 The [.dockerignore](../../.dockerignore) file keeps the tests, the docs, the notebooks, and the local secrets out of the build context.
 
@@ -55,6 +55,7 @@ Compose does these things:
 - It publishes the port in `SERVER_PORT` to the host.
 - It mounts the host directory `./photos` on `/app/photos`. The uploaded photos stay on the host.
 - It mounts the host directory `./certs` on `/app/certs` in read-only mode.
+- It mounts the host directory `./models` on `/app/models` in read-only mode. The classifier weights stay on the host, so the image doesn't need to hold them.
 - It starts the container again after a failure or after a restart of the host. It does not start the container again after a manual stop.
 
 Open the app at `https://<host LAN IP address>:<SERVER_PORT>`.

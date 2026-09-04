@@ -7,7 +7,7 @@ The app requires the following environment variables:
 1. `NAME`: My dog's name, injected into the HTML templates for display.
 2. `DB_PASSWORD`: The app's Postgres user password.
 3. `NETWORK_NAME`: Name of the Wi-Fi network the app is running on, attributed to every prediction logged during the run.
-4. `DB_HOST`: Database host. Usually just "0.0.0.0".
+4. `DB_HOST`: Database host. Usually just "127.0.0.1" locally, "0.0.0.0" in Docker.
 5. `DB_PORT`: Database host port. Usually 5432 for Postgres.
 6. `DB_USER`: App's database username.
 7. `DB_NAME`: App database name.
