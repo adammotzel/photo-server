@@ -5,7 +5,7 @@ from typing import IO, Callable
 
 from PIL import Image, ImageOps
 
-from src.constants import THUMBNAIL_MAX_PX, THUMBNAIL_QUALITY, THUMBNAIL_SUBDIR
+from src.config import THUMBNAIL_MAX_PX, THUMBNAIL_QUALITY, THUMBNAIL_SUBDIR
 from src.db import write_photo_metadata
 from src.logger import logger
 

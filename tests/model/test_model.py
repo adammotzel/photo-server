@@ -1,8 +1,14 @@
+import base64
+import io
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
+from PIL import Image
 
-from src.model import inference, load_model
+from src.config import DESCRIPTION_MAX_PX, OPENAI_MODEL
+from src.model import _encode_for_description, describe_image, inference, load_model
+from src.types import Description
 
 MODEL_PATH = (
     Path(__file__).resolve().parent.parent.parent
@@ -10,66 +16,71 @@ MODEL_PATH = (
 )
 
 
-@pytest.fixture(scope="module")
-def processor_and_model():
+def test_inference_returns_known_label_and_probability(sample_image_bytes):
     """
-    Load the real processor/classifier once for the whole module.
-
-    Returns
-    -------
-    tuple[AutoImageProcessor, AutoModelForImageClassification]
-        The image processor and classifier loaded from `MODEL_PATH`.
+    Verify the real classifier returns one of its known labels with a
+    confidence in `[0, 1]`.
     """
-    return load_model(str(MODEL_PATH))
+    processor, model = load_model(str(MODEL_PATH))
 
-
-def test_inference_returns_expected_types(processor_and_model, sample_image_bytes):
-    """
-    Verify `inference` returns a `(str, float)` label/confidence pair.
-
-    Parameters
-    ----------
-    processor_and_model : tuple
-        The image processor and classifier.
-    sample_image_bytes : bytes
-        Bytes of a real image to classify.
-    """
-    processor, model = processor_and_model
     label, confidence = inference(processor, model, sample_image_bytes)
 
-    assert isinstance(label, str)
+    assert label in model.config.id2label.values()
     assert isinstance(confidence, float)
-
-
-def test_inference_confidence_in_valid_range(processor_and_model, sample_image_bytes):
-    """
-    Verify `inference`'s confidence score falls within `[0.0, 1.0]`.
-
-    Parameters
-    ----------
-    processor_and_model : tuple
-        The image processor and classifier.
-    sample_image_bytes : bytes
-        Bytes of a real image to classify.
-    """
-    processor, model = processor_and_model
-    _, confidence = inference(processor, model, sample_image_bytes)
-
     assert 0.0 <= confidence <= 1.0
 
 
-def test_inference_label_is_known_class(processor_and_model, sample_image_bytes):
+def test_encode_for_description_downscales(sample_image_bytes):
     """
-    Verify `inference` returns a label from the model's known class set.
-
-    Parameters
-    ----------
-    processor_and_model : tuple
-        The image processor and classifier.
-    sample_image_bytes : bytes
-        Bytes of a real image to classify.
+    Verify the image sent to the vision model is a JPEG bounded to
+    `DESCRIPTION_MAX_PX`, not the full-size original.
     """
-    processor, model = processor_and_model
-    label, _ = inference(processor, model, sample_image_bytes)
+    with Image.open(io.BytesIO(sample_image_bytes)) as original:
+        assert max(original.size) > DESCRIPTION_MAX_PX  # guard against a vacuous pass
 
-    assert label in model.config.id2label.values()
+    decoded = base64.b64decode(_encode_for_description(sample_image_bytes))
+
+    with Image.open(io.BytesIO(decoded)) as image:
+        assert image.format == "JPEG"
+        assert max(image.size) == DESCRIPTION_MAX_PX
+
+
+def test_describe_image_returns_model_text(monkeypatch, sample_image_bytes):
+    """
+    Verify `describe_image` sends the encoded image to the configured model and
+    returns its stripped text, token usage, and model name.
+    """
+    mock_client = MagicMock()
+    response = mock_client.responses.create.return_value
+    response.output_text = "  Such dog.  "
+    response.usage.input_tokens = 123
+    response.usage.output_tokens = 45
+    response.model = "gpt-4o-mini-2024-07-18"
+    monkeypatch.setattr("src.model.get_openai_client", lambda: mock_client)
+
+    description = describe_image(sample_image_bytes)
+
+    assert description == Description(
+        description="Such dog.",
+        input_tokens=123,
+        output_tokens=45,
+        model="gpt-4o-mini-2024-07-18",
+    )
+
+    kwargs = mock_client.responses.create.call_args.kwargs
+    assert kwargs["model"] == OPENAI_MODEL
+    image_url = kwargs["input"][0]["content"][1]["image_url"]
+    assert image_url.startswith("data:image/jpeg;base64,")
+
+
+def test_describe_image_raises_without_usage(monkeypatch, sample_image_bytes):
+    """
+    Verify a response missing token usage raises instead of recording a
+    description with unknown cost.
+    """
+    mock_client = MagicMock()
+    mock_client.responses.create.return_value.usage = None
+    monkeypatch.setattr("src.model.get_openai_client", lambda: mock_client)
+
+    with pytest.raises(RuntimeError, match="token usage"):
+        describe_image(sample_image_bytes)

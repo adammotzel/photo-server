@@ -8,7 +8,7 @@ The base `google/efficientnet-b0` model's classifier head is replaced with a 2-c
 
 ## Inference
 
-`inference()` takes raw image bytes, runs them through the model's processor and forward pass, and returns the predicted label and its confidence score (softmax over the model's logits). It's a synchronous, CPU-bound function, so the upload path (see [UPLOAD](UPLOAD.md)) always calls it through `run_in_threadpool` rather than awaiting it directly.
+`inference()` takes raw image bytes, runs them through the model's processor and forward pass, and returns the predicted label and its confidence score (softmax over the model's logits). It's a synchronous, CPU-bound function, so the upload path always calls it through `run_in_threadpool` rather than awaiting it directly.
 
 ## Why efficientnet-b0
 

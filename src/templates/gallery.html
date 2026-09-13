@@ -76,6 +76,83 @@
             font-size: 1rem;
             color: #555;
         }
+
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 24px;
+            background-color: rgba(0,0,0,0.85);
+        }
+
+        /* the flex rule above would otherwise win over the hidden attribute */
+        .lightbox[hidden] {
+            display: none;
+        }
+
+        .lightbox img {
+            max-width: min(900px, 100%);
+
+            /* leave room for the caption and the close button */
+            max-height: 65vh;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .lightbox-description {
+            max-width: 600px;
+            margin: 0;
+            font-size: 1.05rem;
+            line-height: 1.5;
+            color: #fff;
+            overflow-wrap: anywhere;
+        }
+
+        .lightbox-description.empty {
+            font-style: italic;
+            color: #aaa;
+        }
+
+        .lightbox-loading {
+            position: absolute;
+            font-size: 1.05rem;
+            color: #aaa;
+        }
+
+        /* the photo and its caption stay hidden (but keep their space) until
+           the original has loaded, so they appear together */
+        .lightbox.loading img,
+        .lightbox.loading .lightbox-description {
+            visibility: hidden;
+        }
+
+        .lightbox:not(.loading) .lightbox-loading {
+            display: none;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 44px;
+            height: 44px;
+            font-size: 1.5rem;
+            line-height: 1;
+            color: #fff;
+            background-color: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .lightbox-close:hover {
+            background-color: rgba(255,255,255,0.3);
+        }
     </style>
     <a href="/" class="home-button">🏠 Home</a>
 </head>
@@ -83,8 +160,12 @@
     <h1>Photo Gallery</h1>
     <div class="gallery">
         {% for photo in photos %}
-            <a href="/photos/{{ photo }}" target="_blank" rel="noopener">
-                <img src="/thumbnails/{{ photo }}" alt="{{ photo }}" loading="lazy" decoding="async">
+            <a href="/photos/{{ photo.stored_filename }}"
+               target="_blank"
+               rel="noopener"
+               data-description="{{ photo.description or '' }}">
+                <img src="/thumbnails/{{ photo.stored_filename }}"
+                     alt="Uploaded photo" loading="lazy" decoding="async">
             </a>
         {% else %}
             <p>No photos have been uploaded.</p>
@@ -108,5 +189,98 @@
             {% endif %}
         </div>
     {% endif %}
+
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true"
+         aria-label="Photo and its description" hidden>
+        <button type="button" class="lightbox-close" id="lightbox-close"
+                aria-label="Close">&times;</button>
+        <p class="lightbox-loading" aria-live="polite">Loading…</p>
+        <img id="lightbox-image" alt="Uploaded photo">
+        <p class="lightbox-description" id="lightbox-description"></p>
+    </div>
+
+    <script>
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImage = document.getElementById('lightbox-image');
+        const lightboxDescription = document.getElementById('lightbox-description');
+        const lightboxClose = document.getElementById('lightbox-close');
+
+        // where focus was before the lightbox stole it, so Escape can hand it back
+        let lastFocused = null;
+
+        // bumped on every open, so a slow load that finishes after another
+        // photo was opened can't reveal the newer one early
+        let loadToken = 0;
+
+        function openLightbox(link) {
+            lastFocused = document.activeElement;
+            const token = ++loadToken;
+
+            const description = link.dataset.description;
+
+            // textContent, not innerHTML: the description is model-written text,
+            // never markup
+            lightboxDescription.textContent =
+                description || 'No description for this one.';
+            lightboxDescription.classList.toggle('empty', !description);
+
+            lightbox.classList.add('loading');
+
+            // the full-size original is only fetched once a tile is opened;
+            // the grid itself never requests anything but thumbnails
+            lightboxImage.src = link.getAttribute('href');
+
+            // reveal on failure too, so a broken photo still shows its caption
+            // rather than leaving the lightbox stuck on "Loading…"
+            const reveal = () => {
+                if (token === loadToken) {
+                    lightbox.classList.remove('loading');
+                }
+            };
+            lightboxImage.decode().then(reveal, reveal);
+
+            lightbox.hidden = false;
+            document.body.style.overflow = 'hidden';
+            lightboxClose.focus();
+        }
+
+        function closeLightbox() {
+            lightbox.hidden = true;
+            document.body.style.overflow = '';
+
+            // drop the original so a closed lightbox isn't holding a
+            // multi-megabyte image in memory
+            lightboxImage.removeAttribute('src');
+
+            if (lastFocused) {
+                lastFocused.focus();
+                lastFocused = null;
+            }
+        }
+
+        // without JS the links still work: the tile opens the full-size photo
+        // in a new tab, exactly as it did before descriptions existed
+        document.querySelectorAll('.gallery a').forEach((link) => {
+            link.addEventListener('click', (event) => {
+                event.preventDefault();
+                openLightbox(link);
+            });
+        });
+
+        lightboxClose.addEventListener('click', closeLightbox);
+
+        // backdrop only; a click on the photo or its caption shouldn't dismiss
+        lightbox.addEventListener('click', (event) => {
+            if (event.target === lightbox) {
+                closeLightbox();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !lightbox.hidden) {
+                closeLightbox();
+            }
+        });
+    </script>
 </body>
 </html>

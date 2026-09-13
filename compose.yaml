@@ -8,6 +8,9 @@ services:
     # built and tagged only by scripts/build.sh, which sets PHOTO_SERVER_TAG (version-shortsha) in .env
     image: photo-server:${PHOTO_SERVER_TAG:?run scripts/build.sh first}
     restart: unless-stopped
+    # time between SIGTERM and SIGKILL; must exceed timeout_graceful_shutdown
+    # in scripts/run.py so background descriptions can finish on stop
+    stop_grace_period: 100s
     env_file: .env
     environment:
       # Postgres runs on host (see docs/setup/01_POSTGRES.md)

@@ -1,6 +1,7 @@
 from psycopg_pool import ConnectionPool
 
-from src.constants import config
+from src.config import config
+from src.types import GalleryPhoto
 
 pool = ConnectionPool(
     conninfo=(
@@ -17,13 +18,84 @@ pool = ConnectionPool(
 )
 
 
-def write_photo_metadata(
-    stored_filename: str,
-    content_type: str | None,
-) -> int:
+def write_description(
+    photo_id: int,
+    description: str,
+    input_tokens: int,
+    output_tokens: int,
+    model: str,
+) -> None:
+    """
+    Insert new record into 'descriptions' table and link it from its 'photos'
+    record, in one transaction. Record 'id' is auto-incremented and
+    'generated_at' is generated upon insert.
+
+    Descriptions are written in the background after the photo is saved, so
+    the insert and the link must commit together: otherwise a failure between
+    them would leave a 'descriptions' row no photo points to.
+
+    Parameters
+    ----------
+    photo_id : int
+        'id' of the 'photos' record the description belongs to.
+    description : str
+        LLM-written description of the photo.
+    input_tokens : int
+        Tokens billed for the prompt, including the image.
+    output_tokens : int
+        Tokens billed for the description.
+    model : str
+        Model that wrote the description.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    RuntimeError
+        If no 'photos' record has id `photo_id`. Nothing is written.
+    """
+
+    # the connection block commits on a clean exit and rolls back if anything
+    # raises, so both statements land or neither does
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO descriptions (
+                    description,
+                    input_tokens,
+                    output_tokens,
+                    model
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s
+                )
+                RETURNING id
+                """,
+                (description, input_tokens, output_tokens, model),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise RuntimeError("Insert into 'descriptions' did not return an id.")
+
+            cur.execute(
+                "UPDATE photos SET description_id = %s WHERE id = %s",
+                (row[0], photo_id),
+            )
+            if cur.rowcount != 1:
+                raise RuntimeError(f"No 'photos' record with id {photo_id}.")
+
+
+def write_photo_metadata(stored_filename: str, content_type: str | None) -> int:
     """
     Insert new record into 'photos' table. Record 'id' is auto-incremented and
-    'uploaded_at' is generated upon insert.
+    'uploaded_at' is generated upon insert. 'description_id' starts null; see
+    `write_description`.
 
     Parameters
     ----------
@@ -77,37 +149,39 @@ def get_photo_count() -> int:
             return row[0] if row else 0
 
 
-def get_photos(limit: int, offset: int) -> list[str]:
+def get_photos(limit: int, offset: int) -> list[GalleryPhoto]:
     """
-    Fetch a page of stored filenames from the 'photos' table, newest upload
-    first.
+    Fetch a page of photos from the 'photos' table, joined to their
+    descriptions, newest upload first.
 
     Parameters
     ----------
     limit : int
-        Maximum number of filenames to return.
+        Maximum number of photos to return.
     offset : int
         Number of newest-first rows to skip before collecting results.
 
     Returns
     -------
-    list[str]
-        Stored filenames for the requested page, ordered by 'uploaded_at'
-        descending ('id' descending breaks ties from same-timestamp uploads).
+    list[GalleryPhoto]
+        Stored filename and description for the requested page, ordered by
+        'uploaded_at' descending ('id' descending breaks ties from
+        same-timestamp uploads).
     """
 
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT stored_filename
-                FROM photos
-                ORDER BY uploaded_at DESC, id DESC
+                SELECT p.stored_filename, d.description
+                FROM photos p
+                LEFT JOIN descriptions d ON d.id = p.description_id
+                ORDER BY p.uploaded_at DESC, p.id DESC
                 LIMIT %s OFFSET %s
                 """,
                 (limit, offset),
             )
-            return [row[0] for row in cur.fetchall()]
+            return [GalleryPhoto(*row) for row in cur.fetchall()]
 
 
 def upsert_network(name: str) -> int:

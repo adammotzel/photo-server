@@ -18,10 +18,20 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'photoapp')
 
 -- tables
 
+CREATE TABLE IF NOT EXISTS descriptions (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    description TEXT NOT NULL,
+    input_tokens INT NOT NULL,
+    output_tokens INT NOT NULL,
+    generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    model TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS photos (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     stored_filename TEXT NOT NULL UNIQUE,
     content_type TEXT,
+    description_id INT REFERENCES descriptions(id) ON DELETE SET NULL,
     uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -67,4 +77,12 @@ TO photoapp_user;
 
 GRANT USAGE, SELECT, UPDATE
 ON SEQUENCE predictions_id_seq
+TO photoapp_user;
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON TABLE descriptions
+TO photoapp_user;
+
+GRANT USAGE, SELECT, UPDATE
+ON SEQUENCE descriptions_id_seq
 TO photoapp_user;

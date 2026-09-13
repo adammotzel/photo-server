@@ -6,25 +6,19 @@ from fastapi.testclient import TestClient
 
 from src.app import app
 from src.db import pool
+from src.types import Description
+
+DEFAULT_DESCRIPTION = "A very good dog, allegedly."
 
 
 @pytest.fixture(scope="module")
 def client():
     """
-    Build a `TestClient` wired to the real FastAPI app.
+    A `TestClient` wired to the real FastAPI app and `photoapp_test` database.
 
-    `test_app.py`'s `pytestmark` pulls in the session-wide `db_pool` fixture
-    (see root conftest.py), which is already open by the time this runs, so
-    upload tests write real rows to `photoapp_test`. `lifespan()`'s own
-    `pool.open()`/`pool.close()` calls are neutralized here; `ConnectionPool`
-    can't be reopened once closed, and this pool is a session-wide feature
-    also used by the `db` test suite, so only `db_pool` may actually close it.
-
-    Yields
-    ------
-    fastapi.testclient.TestClient
-        A client hitting the real app routes, with its `lifespan` pool
-        open/close calls patched to no-ops.
+    `lifespan()`'s `pool.open()`/`pool.close()` calls are neutralized: the
+    pool can't be reopened once closed, and it is also used by the `db` suite,
+    so only the session-wide `db_pool` fixture may close it.
     """
     mp = pytest.MonkeyPatch()
     mp.setattr(pool, "open", lambda *args, **kwargs: None)
@@ -39,60 +33,39 @@ def client():
 @pytest.fixture(autouse=True)
 def upload_dir(monkeypatch):
     """
-    Redirect `UPLOAD_FOLDER` to a temp dir that is always removed afterward.
-
-    Autouse so no test in this module can accidentally upload to or delete
-    from the real `photos` folder, even if it doesn't request this
-    fixture by name.
-
-    Parameters
-    ----------
-    monkeypatch : _pytest.monkeypatch.MonkeyPatch
-        Built-in pytest fixture used to patch `src.app.UPLOAD_FOLDER` for the
-        duration of the test.
-
-    Yields
-    ------
-    pathlib.Path
-        Path to the temporary upload directory.
+    Redirect `UPLOAD_FOLDER` to a temp dir, so no test can touch the real
+    `photos` folder.
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
         monkeypatch.setattr("src.app.UPLOAD_FOLDER", tmp_dir)
         yield Path(tmp_dir)
 
 
+@pytest.fixture(autouse=True)
+def stub_description(monkeypatch):
+    """
+    Stub `src.app.describe_image` so no test calls the OpenAI API.
+
+    Returns a helper that re-stubs it with a specific description.
+    """
+
+    def _force(description: str = DEFAULT_DESCRIPTION) -> None:
+        result = Description(description, 100, 20, "test-model")
+        monkeypatch.setattr("src.app.describe_image", lambda contents: result)
+
+    _force()
+
+    return _force
+
+
 @pytest.fixture
 def force_inference(monkeypatch):
     """
-    Provide a helper to make `src.app.inference` deterministic.
-
-    Parameters
-    ----------
-    monkeypatch : _pytest.monkeypatch.MonkeyPatch
-        Built-in pytest fixture used to patch `src.app.inference`.
-
-    Returns
-    -------
-    Callable[[str, float], None]
-        A function that, when called with a label and confidence, patches
-        `src.app.inference` to always return that `(label, confidence)` pair.
+    Return a helper that makes `src.app.inference` return a fixed
+    `(label, confidence)` pair.
     """
 
     def _force(label: str, confidence: float) -> None:
-        """
-        Patch `src.app.inference` to return a fixed label and confidence.
-
-        Parameters
-        ----------
-        label : str
-            Predicted class label `inference` should return.
-        confidence : float
-            Confidence score `inference` should return.
-
-        Returns
-        -------
-        None
-        """
         monkeypatch.setattr(
             "src.app.inference", lambda processor, model, contents: (label, confidence)
         )
