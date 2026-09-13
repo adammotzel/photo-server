@@ -1,15 +1,15 @@
 # Classifier Setup
 
-I employ the `efficientnet-b0` vision model to only allow images of dogs to be uploaded to the app. 
+The app uses the `efficientnet-b0` model to accept only images of dogs.
 
-## Finetuning
+## Fine-tuning
 
-My first pass was pretty lazy: I downloaded the model locally then relabeled all ImageNet dog-breed classes to "dog" in the model config and left all other classes in place. That approach ended up producing a lot of false negatives, so I decided to fine-tune the model.
+`scripts/models/finetune.py` replaces the classifier head with a 2-class linear layer ("dog" / "not dog") and trains just that head. The positive class is photos of my dog, the negative class is other photos from my camera roll. (Relabeling ImageNet's dog-breed classes to "dog" without training gave too many false negatives.)
 
-The `scripts/models/finetune.py` script replaces the classifier head with a real 2-class linear layer ("dog" / "not dog") and trains just that head. I used photos of my dog as the "positive" class, and other random photos from my camera roll as the "negative" class.
-
-> NOTE: The base efficientnet-b0 model and my fine-tuned version are not commited to the repository.
+The base and fine-tuned models are not committed to the repo.
 
 ## Serving
 
-The finetuning script writes the model artifacts to the `models/` directory. The app will load the model from here during startup.
+`finetune.py` writes the model artifacts to `models/`. The app loads them from there at startup.
+
+See [CLASSIFIER.md](../architecture/CLASSIFIER.md) for design notes.

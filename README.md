@@ -6,7 +6,7 @@ A side project to serve photos of my dog on a web app to anyone connected to my 
 
 - Open access on trusted Wi-Fi networks (e.g., my home Wi-Fi), no accounts or login required
 - Ability for users to upload new photos, automatically attributed to the uploading device's LAN IP address (for tracking photo metadata)
-- Ability for users to view all uploaded photos in a "gallery"
+- Ability for users to view all uploaded photos in a "gallery", where clicking a photo reveals an LLM-written description of it
 - An image verification layer (using the `efficientnet-b0` vision model)
 
 ## Software + Tools
@@ -19,6 +19,7 @@ Dependency Management:
 
 Backend Services:
 - PostgreSQL
+- OpenAI API (photo descriptions)
 
 Containerization:
 - Docker + compose
@@ -28,7 +29,7 @@ Security:
 
 ## Architecture Decisions
 
-### FastAPI Backend
+### Python FastAPI Backend
 
 FastAPI is my default Python web framework. It's just really easy to use.
 
@@ -38,7 +39,7 @@ The endpoints are defined as async, but most core app functions are written sync
 
 It's a simple app, and basic HTML works fine for serving static web pages. Maybe someday I'll implement a heavier frontend framework for fun.
 
-### PostgreSQL Database Backend
+### PostgreSQL Database
 
 Postgres is simple to set up and use. It's only utilized for storing uploaded photo metadata, including the uploading device's LAN IP address, and the classifier's predictions. The photos themselves are just stored on disk.
 
@@ -66,10 +67,10 @@ bash scripts/build.sh
 docker compose up -d
 ```
 
-`scripts/build.sh` only builds from a clean `main` checkout, so every image maps back to one commit. It runs `docker compose build` and sets `PHOTO_SERVER_TAG` in `.env` to the tag it just built, which is what `docker compose` runs. See [docs/architecture/CONTAINER.md](docs/architecture/CONTAINER.md) for details.
+`scripts/build.sh` only builds from a clean `main` checkout, so every image maps back to one commit. It runs `docker compose build` and sets `PHOTO_SERVER_TAG` in `.env` to the tag it just built, which is what `docker compose` runs.
 
 Run from host:
-```python
+```bash
 uv run --no-sync python -m scripts.run
 ```
 

@@ -1,6 +1,6 @@
 [project]
 name = "photo-server"
-version = "3.0.4"
+version = "3.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.118.0",
@@ -15,14 +15,14 @@ dependencies = [
     "torch>=2.12.1",
     "torchvision>=0.27.1",
     "pydantic-settings>=2.14.2",
-    "setuptools>=83.0.0",  # bc of security scan
-    "idna>=3.15"  # bc of security scan
+    "setuptools>=83.0.0", # bc of security scan
+    "idna>=3.15",
+    "openai>=3.13.0",
 ]
 
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
-    "locust>=2.46.2",
     "pre-commit>=4.5.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
@@ -44,6 +44,5 @@ include_trailing_comma = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = ["tests/load_tests"]
 pythonpath = ["."]
 addopts = "--cov=src --cov-report=term-missing"

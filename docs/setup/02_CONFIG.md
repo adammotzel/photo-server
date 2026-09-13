@@ -2,40 +2,41 @@
 
 ## Environment Variables
 
-The app requires the following environment variables:
+Copy `.env.example` to `.env` at the project root and fill in the values:
 
-1. `NAME`: My dog's name, injected into the HTML templates for display.
-2. `DB_PASSWORD`: The app's Postgres user password.
-3. `NETWORK_NAME`: Name of the Wi-Fi network the app is running on, attributed to every prediction logged during the run.
-4. `DB_HOST`: Database host. Usually just "127.0.0.1" locally, "0.0.0.0" in Docker.
-5. `DB_PORT`: Database host port. Usually 5432 for Postgres.
-6. `DB_USER`: App's database username.
-7. `DB_NAME`: App database name.
-8. `SERVER_IP`: IP for serving the app. "localhost", "0.0.0.0", etc.
-9. `SERVER_PORT`: Port for serving the app.
-10. `SSL_CERTFILE`: Path to SSL public cert.
-11. `SSL_KEYFILE`: Path to SSL private cert.
-
-I store these in a `.env` file at the project root.
+| Variable | Description |
+| --- | --- |
+| `NAME` | Pet name, injected into the HTML templates for display. |
+| `NETWORK_NAME` | Wi-Fi network the app runs on, attributed to every logged prediction. |
+| `DB_HOST` | Database host. `127.0.0.1` locally, `0.0.0.0` in Docker. |
+| `DB_PORT` | Database port. `5432` for Postgres. |
+| `DB_NAME` | Database name. |
+| `DB_USER` | Database user. |
+| `DB_PASSWORD` | Database user password. |
+| `SERVER_IP` | IP to serve on (`localhost`, `0.0.0.0`, ...). |
+| `SERVER_PORT` | Port to serve on. |
+| `SSL_CERTFILE` | Path to the SSL public cert. |
+| `SSL_KEYFILE` | Path to the SSL private key. |
+| `OPENAI_API_KEY` | API key used to write photo descriptions. Read straight from the environment by the OpenAI SDK, not via `Config`. Optional: without it, photos are saved with no description. |
 
 ## Test Environment Variables
 
-Unit tests need their own `DB_NAME`, `DB_USER`, and `DB_PASSWORD`, pointing at the test database instead of the production one (see [04_TESTING.md](04_TESTING.md)). These live in a separate `.env.test` file at the project root, containing just those three keys. `tests/conftest.py` loads `.env` first, then loads `.env.test` on top with `override=True`, so test runs use the test credentials while everything else (`NAME`, `DB_HOST`, etc.) still comes from `.env`.
+Unit tests run against a separate test database (see [04_TESTING.md](04_TESTING.md)). Put its `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in a `.env.test` file at the project root. `tests/conftest.py` loads `.env`, then `.env.test` with `override=True`, so only those three keys change for tests.
+
+The tests never call OpenAI. `tests/app/conftest.py` stubs `describe_image` for every test that uploads, and the `model` suite mocks the client, so `OPENAI_API_KEY` isn't needed to run them.
 
 ## Networking
 
-I serve the app to other devices connected to trusted Wi-Fi networks. This requires allowing inbound traffic on the port for private networks (configured in my machine's firewall settings).
-
-Other in-network devices access the app at `https://<local IP address>:<port>`.
+Serving the app to other LAN devices requires allowing inbound traffic on `SERVER_PORT` for private networks (via firewall settings). Devices then reach the app at `https://<local IP>:<port>`.
 
 ## TLS (HTTPS)
 
-The app is served over HTTPS using a self-signed certificate, so LAN traffic isn't sent in plaintext. Generate a cert/key pair with OpenSSL:
+The app is served over HTTPS with a self-signed certificate. Generate a cert/key pair with OpenSSL:
 
 ```
 openssl req -x509 -newkey rsa:4096 -keyout $SSL_KEYFILE -out $SSL_CERTFILE -days 365 -nodes -subj "/CN=photo-server"
 ```
 
-On Windows, if you run this from Git Bash specifically, MSYS mangles the `/CN=photo-server` argument into a Windows file path and the command fails. Prefix it with `MSYS_NO_PATHCONV=1` to disable that path conversion. PowerShell and other shells aren't affected.
+On Windows Git Bash, MSYS mangles `/CN=photo-server` into a file path and the command fails. Prefix it with `MSYS_NO_PATHCONV=1`. Other shells aren't affected.
 
-Because the cert is self-signed, browsers on in-network devices will show a "connection not private" warning on first visit. Not ideal, but setup is minimal with this approach.
+Because the cert is self-signed, browsers show a "connection not private" warning on first visit.

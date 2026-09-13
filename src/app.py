@@ -3,11 +3,18 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
-from src.constants import (
+from src.config import (
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES,
     MODEL_PATH,
@@ -22,10 +29,12 @@ from src.db import (
     get_photos,
     pool,
     upsert_network,
+    write_description,
     write_prediction,
 )
 from src.logger import listener, logger
-from src.model import inference, load_model
+from src.model import describe_image, inference, load_model
+from src.types import PendingDescription, UploadResult
 from src.utils import save_photo, thumbnail_path
 
 
@@ -53,11 +62,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+# ----- Async utilities -----
+
+
 async def _process_upload(
-    request: Request, file: UploadFile, uploader_ip: str, network_id: int | None
-) -> bool:
+    request: Request,
+    file: UploadFile,
+    uploader_ip: str,
+    network_id: int | None,
+    pending: list[PendingDescription],
+) -> UploadResult:
     """
-    Validate, classify, and save a single uploaded photo. Returns True on success.
+    Validate, classify, and save a single uploaded photo. Accepted photos are
+    appended to `pending` to be described after the response is sent.
 
     Parameters
     ----------
@@ -69,29 +86,33 @@ async def _process_upload(
         LAN IP address of the uploading device.
     network_id : int | None
         'id' of the network the upload was received on.
+    pending : list[PendingDescription]
+        Collects accepted photos still waiting on a description.
 
     Returns
     -------
-    bool
-        If the upload was successful.
+    UploadResult
+        Whether the upload was accepted, the client's original filename, the
+        name it was stored under (accepted uploads only), and why it was
+        rejected (rejected uploads only).
     """
 
+    filename = file.filename or ""
+
     try:
-        filename = file.filename or ""
         ext = os.path.splitext(filename)[-1].lower()
 
         if ext not in ALLOWED_EXTENSIONS or file.content_type not in ALLOWED_MIME_TYPES:
             logger.warning(
                 f"Rejected file '{filename}': unsupported file type ({file.content_type})."
             )
-            return False
+            return UploadResult(False, filename, reason="unsupported file type")
 
         # get unique + safe filename
         unique_filename = f"{uuid.uuid4()}{ext}"
         file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
 
         contents = await file.read()
-        content_type = file.content_type
 
         # check for dawgs
         predicted_label, confidence = await run_in_threadpool(
@@ -114,7 +135,11 @@ async def _process_upload(
                 confidence,
                 uploader_ip,
             )
-            return False
+            return UploadResult(
+                False,
+                filename,
+                reason=f"not a dog ({predicted_label}, {confidence:.0%})",
+            )
 
         photo_id = await run_in_threadpool(
             save_photo,
@@ -122,7 +147,7 @@ async def _process_upload(
             thumbnail_path(UPLOAD_FOLDER, unique_filename),
             contents,
             unique_filename,
-            content_type,
+            file.content_type,
         )
         await run_in_threadpool(
             write_prediction,
@@ -133,10 +158,65 @@ async def _process_upload(
             confidence,
             uploader_ip,
         )
-        return True
+        pending.append(PendingDescription(photo_id, filename, contents))
+        return UploadResult(True, filename, unique_filename)
     except Exception:
         logger.error("A file uploaded failed.", exc_info=True)
-        return False
+        return UploadResult(False, filename, reason="upload failed")
+
+
+async def _describe_photo(pending: PendingDescription) -> None:
+    """
+    Write an LLM description for a saved photo and link it to the photo.
+
+    Best-effort: a photo without a description is still worth keeping, so a
+    failed (or unconfigured) LLM call is logged and otherwise ignored.
+
+    Parameters
+    ----------
+    pending : PendingDescription
+        The saved photo to describe.
+
+    Returns
+    -------
+    None
+    """
+
+    try:
+        description = await run_in_threadpool(describe_image, pending.contents)
+        await run_in_threadpool(
+            write_description,
+            pending.photo_id,
+            description.description,
+            description.input_tokens,
+            description.output_tokens,
+            description.model,
+        )
+    except Exception:
+        logger.warning(
+            f"Failed to describe '{pending.original_filename}'; "
+            "it will stay without a description.",
+            exc_info=True,
+        )
+
+
+async def _describe_photos(pending: list[PendingDescription]) -> None:
+    """
+    Describe a batch of saved photos concurrently. Runs as a background task,
+    after the upload response has been sent.
+
+    Parameters
+    ----------
+    pending : list[PendingDescription]
+        The saved photos to describe.
+
+    Returns
+    -------
+    None
+    """
+
+    logger.info(f"Describing {len(pending)} photo(s) in the background...")
+    await asyncio.gather(*(_describe_photo(photo) for photo in pending))
 
 
 # ---------- ENDPOINTS ----------
@@ -157,6 +237,7 @@ async def upload_form(request: Request):
 @app.post("/upload")
 async def upload_photos(
     request: Request,
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
 ):
     """Upload multiple photos."""
@@ -172,50 +253,35 @@ async def upload_photos(
             detail="Server is shutting down. Uploads temporarily unavailable.",
         )
 
-    logger.info("Uploading files...")
+    pending: list[PendingDescription] = []
 
     results = await asyncio.gather(
         *(
-            _process_upload(request, file, uploader_ip, request.app.state.network_id)
+            _process_upload(
+                request, file, uploader_ip, request.app.state.network_id, pending
+            )
             for file in files
         )
     )
 
-    success_count = sum(results)
-    error_count = len(results) - success_count
+    # fire and forget: LLM descriptions are slow, so the uploader gets their
+    # results now and descriptions are written after the response is sent
+    if pending:
+        background_tasks.add_task(_describe_photos, pending)
 
-    # everything failed
-    if success_count == 0:
-        return templates.TemplateResponse(
-            request,
-            "upload.html",
-            {
-                "success": False,
-                "partial": False,
-                "error": "No valid images were uploaded.",
-            },
-        )
+    accepted = [result for result in results if result.accepted]
+    rejected = [result for result in results if not result.accepted]
 
-    # at least one image was uploaded
-    elif error_count > 0:
-        msg = f"Accepted {success_count} image(s), rejected {error_count} image(s)."
-        logger.info(msg)
+    logger.info(
+        f"Accepted {len(accepted)} image(s), rejected {len(rejected)} image(s)."
+    )
 
-        return templates.TemplateResponse(
-            request,
-            "upload.html",
-            {
-                "success": False,
-                "partial": True,
-                "error": msg,
-            },
-        )
-
-    # all images were uploaded
-    else:
-        logger.info(f"Uploaded {success_count} files.")
-
-        return templates.TemplateResponse(request, "upload.html", {"success": True})
+    # the template picks the success / partial / error message from these
+    return templates.TemplateResponse(
+        request,
+        "upload.html",
+        {"accepted": accepted, "rejected": rejected},
+    )
 
 
 @app.get("/photos", response_class=HTMLResponse)

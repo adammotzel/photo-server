@@ -3,7 +3,14 @@ import uuid
 import psycopg
 import pytest
 
-from src.db import upsert_network, write_photo_metadata, write_prediction
+from src.db import (
+    get_photos,
+    pool,
+    upsert_network,
+    write_description,
+    write_photo_metadata,
+    write_prediction,
+)
 
 pytestmark = pytest.mark.usefixtures("db_pool")
 
@@ -12,99 +19,128 @@ CONTENT_TYPE = "image/jpeg"
 
 def _unique_filename() -> str:
     """
-    Generate a filename that won't collide with rows from other test runs.
-
-    Returns
-    -------
-    str
-        A `.jpg` filename built from a random UUID4.
+    A `.jpg` filename that won't collide with rows from other test runs.
     """
     return f"{uuid.uuid4()}.jpg"
 
 
-def test_write_photo_metadata_returns_int_id():
+def _get_photo(stored_filename: str):
     """
-    Verify inserting a `photos` row returns its integer primary key.
+    Find a just-written photo among the newest page returned by `get_photos`.
     """
-    photo_id = write_photo_metadata(
-        stored_filename=_unique_filename(),
-        content_type=CONTENT_TYPE,
+    return next(
+        photo for photo in get_photos(limit=100, offset=0)
+        if photo.stored_filename == stored_filename
     )
-
-    assert isinstance(photo_id, int)
 
 
 def test_write_photo_metadata_duplicate_filename_raises():
     """
-    Verify inserting a second `photos` row with a filename that already
-    exists raises a unique-constraint violation.
+    Verify stored filenames are unique across `photos` rows.
     """
     stored_filename = _unique_filename()
-
-    write_photo_metadata(
-        stored_filename=stored_filename,
-        content_type=CONTENT_TYPE,
-    )
+    write_photo_metadata(stored_filename=stored_filename, content_type=CONTENT_TYPE)
 
     with pytest.raises(psycopg.errors.UniqueViolation):
-        write_photo_metadata(
-            stored_filename=stored_filename,
-            content_type=CONTENT_TYPE,
+        write_photo_metadata(stored_filename=stored_filename, content_type=CONTENT_TYPE)
+
+
+def test_write_description_links_existing_photo():
+    """
+    Verify a description written for an already-saved photo survives the
+    round trip through the gallery query's join.
+    """
+    stored_filename = _unique_filename()
+    photo_id = write_photo_metadata(
+        stored_filename=stored_filename, content_type=CONTENT_TYPE
+    )
+    description = f"Description {uuid.uuid4()}"
+
+    write_description(
+        photo_id=photo_id,
+        description=description,
+        input_tokens=100,
+        output_tokens=20,
+        model="test-model",
+    )
+
+    assert _get_photo(stored_filename).description == description
+
+
+def test_write_description_for_missing_photo_writes_nothing():
+    """
+    Verify a description for a nonexistent photo raises and rolls back its
+    insert, rather than leaving a `descriptions` row no photo points to.
+    """
+    description = f"Description {uuid.uuid4()}"
+
+    # identity ids start at 1, so -1 never matches a row
+    with pytest.raises(RuntimeError):
+        write_description(
+            photo_id=-1,
+            description=description,
+            input_tokens=100,
+            output_tokens=20,
+            model="test-model",
         )
 
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM descriptions WHERE description = %s",
+                (description,),
+            )
+            assert cur.fetchone() == (0,)
 
-def test_write_prediction_with_valid_photo_id(IP):
-    """
-    Verify a prediction can be inserted referencing an existing photo id.
 
-    Parameters
-    ----------
-    IP : str
-        IP fixture, used as the uploader IP.
+def test_get_photos_description_defaults_to_none():
     """
-    photo_id = write_photo_metadata(
-        stored_filename=_unique_filename(),
-        content_type=CONTENT_TYPE,
-    )
+    Verify a photo without a description comes back with `None`, rather than
+    being dropped by the gallery query's join.
+    """
+    stored_filename = _unique_filename()
+    write_photo_metadata(stored_filename=stored_filename, content_type=CONTENT_TYPE)
+
+    assert _get_photo(stored_filename).description is None
+
+
+@pytest.mark.parametrize("accepted", [True, False], ids=["accepted", "rejected"])
+def test_write_prediction(accepted):
+    """
+    Verify predictions are recorded both for accepted uploads (linked to a
+    photo) and rejected ones (no photo).
+    """
+    photo_id = None
+    if accepted:
+        photo_id = write_photo_metadata(
+            stored_filename=_unique_filename(),
+            content_type=CONTENT_TYPE,
+        )
+    original_filename = _unique_filename()
 
     write_prediction(
         photo_id=photo_id,
         network_id=None,
-        original_filename="original.jpg",
-        predicted_label="dog",
-        confidence=0.98,
-        uploader_ip=IP,
+        original_filename=original_filename,
+        predicted_label="dog" if accepted else "cat",
+        confidence=0.9,
+        uploader_ip="127.0.0.1",
     )
 
-
-def test_write_prediction_with_null_photo_id(IP):
-    """
-    Verify a prediction for a rejected (non-dog) upload can be inserted with
-    a null photo id.
-
-    Parameters
-    ----------
-    IP : str
-        IP fixture, used as the uploader IP.
-    """
-    write_prediction(
-        photo_id=None,
-        network_id=None,
-        original_filename="original.jpg",
-        predicted_label="cat",
-        confidence=0.42,
-        uploader_ip=IP,
-    )
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT photo_id FROM predictions WHERE original_filename = %s",
+                (original_filename,),
+            )
+            assert cur.fetchone() == (photo_id,)
 
 
 def test_upsert_network_is_idempotent():
     """
-    Verify calling `upsert_network` twice with the same name returns the
-    same id both times, rather than creating a duplicate row.
+    Verify upserting the same network name twice returns the same id rather
+    than creating a duplicate row.
     """
     name = f"test-network-{uuid.uuid4()}"
 
-    first_id = upsert_network(name)
-    second_id = upsert_network(name)
-
-    assert first_id == second_id
+    assert upsert_network(name) == upsert_network(name)

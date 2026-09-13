@@ -25,4 +25,6 @@ RUN mkdir -p /app/photos \
     && chown -R app:app /app/photos
 USER app
 
-CMD ["uv", "run", "--no-sync", "python", "-m", "scripts.run"]
+# python as PID 1 (the venv is on PATH), so SIGTERM from `docker stop` reaches
+# uvicorn directly and triggers its graceful shutdown
+CMD ["python", "-m", "scripts.run"]
