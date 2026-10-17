@@ -1,5 +1,6 @@
 import base64
 import io
+import random
 from functools import cache
 
 import torch
@@ -17,7 +18,10 @@ from src.config import (
     OPENAI_MODEL,
     OPENAI_TIMEOUT_S,
 )
+from src.prompts import base_prompt, prompts
 from src.types import Description
+
+NUM_PROMPTS = len(prompts)
 
 
 def inference(
@@ -144,17 +148,18 @@ def describe_image(contents: bytes) -> Description:
 
     image_data = _encode_for_description(contents)
 
+    # randomly select and construct prompt
+    prompt_id = random.randint(0, NUM_PROMPTS - 1)
+    prompt = prompts[prompt_id]
+    full_prompt = " ".join([base_prompt, prompt])
+
     prompt: ResponseInputParam = [
         {
             "role": "user",
             "content": [
                 {
                     "type": "input_text",
-                    "text": (
-                        "Provide a witty, funny description of the dog "
-                        "in this image. Keep it short and sweet, one sentence. "
-                        "Plain text only."
-                    ),
+                    "text": full_prompt,
                 },
                 {
                     "type": "input_image",
