@@ -19,5 +19,5 @@ uvicorn.run(
     # OpenAI call is bounded by OPENAI_TIMEOUT_S / OPENAI_MAX_RETRIES in
     # src/config.py). Keep below stop_grace_period in compose.yaml, or Docker
     # kills the container first
-    timeout_graceful_shutdown=90,
+    timeout_graceful_shutdown=20,
 )
