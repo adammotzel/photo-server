@@ -24,10 +24,10 @@ from src.config import (
     config,
     templates,
 )
-from src.db import (
+from src.database.transactions import (
+    engine,
     get_photo_count,
     get_photos,
-    pool,
     upsert_network,
     write_description,
     write_prediction,
@@ -44,23 +44,24 @@ async def lifespan(app: FastAPI):
 
     app.state.shutting_down = False
     listener.start()
-    logger.info("Loading classifier...")
-    app.state.processor, app.state.model = load_model(MODEL_PATH)
-    logger.info("Setting up database connection pool...")
-    pool.open()
-    app.state.network_id = upsert_network(config.network_name)
-    logger.info(f"App launched on Wi-Fi network '{config.network_name}'")
 
-    yield
+    try:
+        logger.info("Loading classifier...")
+        app.state.processor, app.state.model = load_model(MODEL_PATH)
+        logger.info("Setting up database...")
+        app.state.network_id = upsert_network(config.network_name)
+        logger.info(f"App launched on Wi-Fi network '{config.network_name}'")
 
-    app.state.shutting_down = True
-    pool.close()
-    logger.info("Shutdown complete.")
-    listener.stop()
+        yield
+
+    finally:
+        app.state.shutting_down = True
+        engine.dispose()
+        logger.info("Shutdown complete.")
+        listener.stop()
 
 
 app = FastAPI(lifespan=lifespan)
-
 
 # ----- Async utilities -----
 

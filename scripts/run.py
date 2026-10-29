@@ -1,3 +1,5 @@
+"""Run the app from host."""
+
 import os
 from pathlib import Path
 

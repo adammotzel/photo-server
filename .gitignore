@@ -181,7 +181,7 @@ cython_debug/
 .pypirc
 
 # Custom
-TODO
+TODO*
 efficientnet-b0/
 efficientnet-b0-dog-classifier/
 

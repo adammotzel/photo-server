@@ -5,9 +5,9 @@ The app runs in a Docker container, but Postgres stays on the host (see [01_POST
 ## Before You Start
 
 1. Install Docker Engine and the Compose plugin.
-2. Start Postgres on the host (see [01_POSTGRES.md](01_POSTGRES.md)).
-3. Create `.env` in the project root (see [02_CONFIG.md](02_CONFIG.md)).
-4. Generate the TLS cert and key in `certs/` (see [02_CONFIG.md](02_CONFIG.md)).
+2. Create `.env` in the project root (see [01_CONFIG.md](01_CONFIG.md)).
+3. Start Postgres on the host (see [02_POSTGRES.md](02_POSTGRES.md)).
+4. Generate the TLS cert and key in `certs/` (see [01_CONFIG.md](01_CONFIG.md)).
 5. Put the classifier files in `models/` (see [03_CLASSIFIER.md](03_CLASSIFIER.md)).
 
 Make sure Postgres accepts connections from the Docker network, and that the host firewall permits inbound traffic to `SERVER_PORT`.

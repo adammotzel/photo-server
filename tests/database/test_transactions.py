@@ -1,11 +1,15 @@
 import uuid
 
-import psycopg
 import pytest
+import sqlalchemy
+from sqlalchemy import select, func
+from sqlalchemy.orm import Session
 
-from src.db import (
+from src.database.tables import Descriptions, Predictions
+
+from src.database.transactions import (
+    engine,
     get_photos,
-    pool,
     upsert_network,
     write_description,
     write_photo_metadata,
@@ -41,7 +45,7 @@ def test_write_photo_metadata_duplicate_filename_raises():
     stored_filename = _unique_filename()
     write_photo_metadata(stored_filename=stored_filename, content_type=CONTENT_TYPE)
 
-    with pytest.raises(psycopg.errors.UniqueViolation):
+    with pytest.raises(sqlalchemy.exc.IntegrityError):
         write_photo_metadata(stored_filename=stored_filename, content_type=CONTENT_TYPE)
 
 
@@ -84,13 +88,18 @@ def test_write_description_for_missing_photo_writes_nothing():
             model="test-model",
         )
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT COUNT(*) FROM descriptions WHERE description = %s",
-                (description,),
+    with Session(engine) as session:
+        total = session.execute(
+            select(
+                func.count()
+            ).select_from(
+                Descriptions
+            ).where(
+                Descriptions.description == description
             )
-            assert cur.fetchone() == (0,)
+        ).scalar()
+
+    assert total == 0
 
 
 def test_get_photos_description_defaults_to_none():
@@ -127,13 +136,16 @@ def test_write_prediction(accepted):
         uploader_ip="127.0.0.1",
     )
 
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT photo_id FROM predictions WHERE original_filename = %s",
-                (original_filename,),
+    with Session(engine) as session:
+        id = session.execute(
+            select(
+                Predictions.photo_id
+            ).where(
+                Predictions.original_filename == original_filename
             )
-            assert cur.fetchone() == (photo_id,)
+        ).scalar()
+
+    assert id == photo_id 
 
 
 def test_upsert_network_is_idempotent():

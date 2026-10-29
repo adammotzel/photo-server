@@ -2,8 +2,6 @@
 
 Postgres just stores metadata. The photos themselves live on disk. 
 
-There are four database tables, with no ORM. I write raw SQL using `psycopg` (see [docs/setup/01_POSTGRES.md](../setup/01_POSTGRES.md) for setup).
-
 ## Tables
 
 | Table | Description |
