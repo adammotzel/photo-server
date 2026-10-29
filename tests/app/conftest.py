@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.app import app
-from src.db import pool
+from src.database.transactions import engine
 from src.types import Description
 
 DEFAULT_DESCRIPTION = "A very good dog, allegedly."
@@ -16,18 +16,18 @@ def client():
     """
     A `TestClient` wired to the real FastAPI app and `photoapp_test` database.
 
-    `lifespan()`'s `pool.open()`/`pool.close()` calls are neutralized: the
-    pool can't be reopened once closed, and it is also used by the `db` suite,
-    so only the session-wide `db_pool` fixture may close it.
+    The session-wide `db_pool` fixture owns the engine lifecycle.
     """
     mp = pytest.MonkeyPatch()
-    mp.setattr(pool, "open", lambda *args, **kwargs: None)
-    mp.setattr(pool, "close", lambda *args, **kwargs: None)
 
-    with TestClient(app) as test_client:
-        yield test_client
+    # The test suite owns the engine lifecycle.
+    mp.setattr(engine, "dispose", lambda *args, **kwargs: None)
 
-    mp.undo()
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        mp.undo()
 
 
 @pytest.fixture(autouse=True)

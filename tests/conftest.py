@@ -3,10 +3,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# must run before any `src.*` module is imported anywhere during collection,
-# since src/config.py builds Config() (and src/db.py its pool) at import time
+# must run before any `src.*` module is imported,
+# since src/config.py builds Config() at import time
 _ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(_ROOT_DIR / ".env")
+
+# forces test database usage
 load_dotenv(_ROOT_DIR / ".env.test", override=True)
 
 import pytest
@@ -35,13 +37,10 @@ def sample_image_bytes() -> bytes:
 def db_pool():
     """
     Open the `photoapp_test` connection pool exactly once for the session.
-
-    `psycopg_pool.ConnectionPool` cannot be reopened once closed, and it's
-    shared by every test that imports `src.db` (or `src.app`), so only this
-    fixture may own its open/close lifecycle.
     """
-    from src.db import pool
+    from src.database.transactions import engine
 
-    pool.open()
-    yield pool
-    pool.close()
+    try:
+        yield engine
+    finally:
+        engine.dispose()

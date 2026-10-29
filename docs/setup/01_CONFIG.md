@@ -1,4 +1,4 @@
-# App Configuration Setup
+# App Configuration
 
 ## Environment Variables
 
@@ -10,9 +10,10 @@ Copy `.env.example` to `.env` at the project root and fill in the values:
 | `NETWORK_NAME` | Wi-Fi network the app runs on, attributed to every logged prediction. |
 | `DB_HOST` | Database host. `127.0.0.1` locally, `0.0.0.0` in Docker. |
 | `DB_PORT` | Database port. `5432` for Postgres. |
-| `DB_NAME` | Database name. |
-| `DB_USER` | Database user. |
+| `DB_NAME` | Database name. I used `photoapp`. |
+| `DB_USER` | Database user. I used `photoapp_user` |
 | `DB_PASSWORD` | Database user password. |
+| `DB_PGSQL_PW` | Postgres admin password. |
 | `SERVER_IP` | IP to serve on (`localhost`, `0.0.0.0`, ...). |
 | `SERVER_PORT` | Port to serve on. |
 | `SSL_CERTFILE` | Path to the SSL public cert. |
@@ -21,7 +22,7 @@ Copy `.env.example` to `.env` at the project root and fill in the values:
 
 ## Test Environment Variables
 
-Unit tests run against a separate test database (see [04_TESTING.md](04_TESTING.md)). Put its `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in a `.env.test` file at the project root. `tests/conftest.py` loads `.env`, then `.env.test` with `override=True`, so only those three keys change for tests.
+Unit tests run against a separate test database (see [04_TESTING.md](04_TESTING.md)). Put its `DB_NAME` in a `.env.test` file in project root (I recommend using `photoapp_test` as the test database name). The `tests/conftest.py` file loads `.env`, then `.env.test` with `override=True`, which forces usage of the test database.
 
 The tests never call OpenAI. `tests/app/conftest.py` stubs `describe_image` for every test that uploads, and the `model` suite mocks the client, so `OPENAI_API_KEY` isn't needed to run them.
 
@@ -34,6 +35,10 @@ Serving the app to other LAN devices requires allowing inbound traffic on `SERVE
 The app is served over HTTPS with a self-signed certificate. Generate a cert/key pair with OpenSSL:
 
 ```
+set -a
+source .env
+set +a
+
 openssl req -x509 -newkey rsa:4096 -keyout $SSL_KEYFILE -out $SSL_CERTFILE -days 365 -nodes -subj "/CN=photo-server"
 ```
 

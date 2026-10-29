@@ -4,9 +4,16 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from src.config import PHOTO_CACHE_HEADERS, config
-from src.db import pool, write_description, write_photo_metadata
+from src.database.tables import Descriptions, Photos, Predictions
+from src.database.transactions import (
+    engine, 
+    write_description, 
+    write_photo_metadata,
+)
 from src.types import Description
 from src.utils import thumbnail_path, write_thumbnail
 
@@ -25,32 +32,31 @@ def _fetch_prediction(original_filename: str) -> tuple[int | None, str] | None:
     Return `(photo_id, predicted_label)` for an upload, or `None` if no
     prediction was recorded.
     """
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT photo_id, predicted_label "
-                "FROM predictions WHERE original_filename = %s",
-                (original_filename,),
-            )
-            return cur.fetchone()
+    with Session(engine) as session:
+        row = session.execute(
+            select(Predictions.photo_id, Predictions.predicted_label)
+            .where(Predictions.original_filename == original_filename)
+        ).first()
+
+        return tuple(row) if row is not None else None
 
 
 def _fetch_photo(photo_id: int) -> tuple[str, str | None]:
     """
     Return `(stored_filename, description)` for a `photos` row.
     """
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT p.stored_filename, d.description "
-                "FROM photos p "
-                "LEFT JOIN descriptions d ON d.id = p.description_id "
-                "WHERE p.id = %s",
-                (photo_id,),
+    with Session(engine) as session:
+        row = session.execute(
+            select(Photos.stored_filename, Descriptions.description)
+            .outerjoin(
+                Descriptions,
+                Photos.description_id == Descriptions.id,
             )
-            row = cur.fetchone()
-            assert row is not None, f"no photos row with id {photo_id}"
-            return row
+            .where(Photos.id == photo_id)
+        ).first()
+
+        assert row is not None, f"no photos row with id {photo_id}"
+        return tuple(row)
 
 
 def _write_photo(description: str | None = None) -> str:

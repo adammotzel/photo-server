@@ -33,6 +33,6 @@ The gallery holds it back until a viewer asks for it. Each tile carries its desc
 
 ## Startup and Shutdown
 
-The app's `lifespan` handler opens the Postgres connection pool and starts the async logging listener on startup, and closes them on shutdown. It also sets `app.state.shutting_down = True` during shutdown, which the `POST /upload` route checks at the top of the handler and uses to reject upload requests that arrive during shutdown with a `503` rather than let them fail mid-write.
+The app's `lifespan` handler opens the Postgres connection engine and starts the async logging listener on startup, and closes them on shutdown. It also sets `app.state.shutting_down = True` during shutdown, which the `POST /upload` route checks at the top of the handler and uses to reject upload requests that arrive during shutdown with a `503` rather than let them fail mid-write.
 
 On startup, it also upserts the configured `NETWORK_NAME` into the `networks` table (inserting it if new, otherwise reusing the existing row) and caches the resulting `network_id` on `app.state`, so every prediction written during that process's lifetime is attributed to the network it was launched on.

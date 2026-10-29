@@ -11,17 +11,20 @@ class Config(BaseSettings):
     db_port: int
     db_user: str
     db_name: str
+    openai_model: str
+    openai_timeout_s: int
+    openai_max_retries: int
 
 
 config = Config()  # ty: ignore[missing-argument]
 
-OPENAI_MODEL = "gpt-4o-mini"
+OPENAI_MODEL = config.openai_model
 
 # descriptions are written in the background, and shutdown waits for them (see
 # timeout_graceful_shutdown in scripts/run.py): bound each call so a hung
 # request can't hold shutdown hostage. SDK defaults are 600s and 2 retries
-OPENAI_TIMEOUT_S = 30
-OPENAI_MAX_RETRIES = 1
+OPENAI_TIMEOUT_S = config.openai_timeout_s
+OPENAI_MAX_RETRIES = config.openai_max_retries
 
 # descriptions are generated from a downscaled copy: the vision model tiles
 # the image anyway, and base64-ing an 11 MB original is slow and expensive
