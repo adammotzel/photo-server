@@ -32,8 +32,9 @@ from src.database.transactions import (
     write_description,
     write_prediction,
 )
+from src.llm import describe_image
 from src.logger import listener, logger
-from src.model import describe_image, inference, load_model
+from src.model import inference, load_model
 from src.types import PendingDescription, UploadResult
 from src.utils import save_photo, thumbnail_path
 

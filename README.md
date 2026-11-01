@@ -43,7 +43,7 @@ In-network devices can access the app at `https://<host LAN IP>:<SERVER_PORT>`.
 
 FastAPI is my default Python web framework. It's just really easy to use.
 
-The endpoints are defined as async, but core app functions are written synchronously. I use FastAPI's `run_in_threadpool` utility to offload blocking operations to worker threads. It works well for an app of this size.
+The endpoints are defined as async, but core app functions are written synchronously. I use FastAPI's `run_in_threadpool` utility to offload blocking operations to worker threads. It works well for an app of this size that has a limited number of users.
 
 ### Vanilla HTML Frontend
 
