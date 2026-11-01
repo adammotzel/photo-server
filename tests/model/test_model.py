@@ -7,7 +7,8 @@ import pytest
 from PIL import Image
 
 from src.config import DESCRIPTION_MAX_PX, OPENAI_MODEL
-from src.model import _encode_for_description, describe_image, inference, load_model
+from src.llm import _encode_for_description, describe_image
+from src.model import inference, load_model
 from src.types import Description
 
 MODEL_PATH = (
@@ -56,7 +57,7 @@ def test_describe_image_returns_model_text(monkeypatch, sample_image_bytes):
     response.usage.input_tokens = 123
     response.usage.output_tokens = 45
     response.model = "gpt-4o-mini-2024-07-18"
-    monkeypatch.setattr("src.model.get_openai_client", lambda: mock_client)
+    monkeypatch.setattr("src.llm.get_openai_client", lambda: mock_client)
 
     description = describe_image(sample_image_bytes)
 
@@ -80,7 +81,7 @@ def test_describe_image_raises_without_usage(monkeypatch, sample_image_bytes):
     """
     mock_client = MagicMock()
     mock_client.responses.create.return_value.usage = None
-    monkeypatch.setattr("src.model.get_openai_client", lambda: mock_client)
+    monkeypatch.setattr("src.llm.get_openai_client", lambda: mock_client)
 
     with pytest.raises(RuntimeError, match="token usage"):
         describe_image(sample_image_bytes)
